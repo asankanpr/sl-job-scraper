@@ -1,0 +1,460 @@
+<!-- Header -->
+<header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 p-2 rounded-lg text-white">
+                <i class="fa-solid fa-briefcase text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-white leading-tight">Job & Gazette Scraper</h1>
+                <p class="text-xs text-slate-400">Admin Control & Realtime Monitoring Dashboard</p>
+            </div>
+        </div>
+
+        <!-- Credentials Config Trigger -->
+        <button onclick="toggleConfigModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-lg flex items-center space-x-2 border border-slate-600 transition">
+            <i class="fa-solid fa-key text-amber-400"></i>
+            <span>Supabase Keys Setup</span>
+        </button>
+    </div>
+</header>
+
+<!-- Credentials Modal -->
+<div id="configModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+            <i class="fa-solid fa-sliders text-blue-400"></i>
+            <span>Supabase Credentials Setup</span>
+        </h3>
+        <p class="text-xs text-slate-400 mb-4">Dashboard එක Supabase එකට Connect කිරීමට පහත විස්තර ඇතුළත් කරන්න.</p>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Supabase URL</label>
+                <input type="text" id="sbUrlInput" placeholder="https://xxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Supabase Anon Key (Public Key)</label>
+                <input type="password" id="sbKeyInput" placeholder="eyJhbGciOi..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+            <button onclick="toggleConfigModal()" class="px-4 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg">Cancel</button>
+            <button onclick="saveCredentials()" class="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">Save & Connect</button>
+        </div>
+    </div>
+</div>
+
+<!-- Main Container -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Navigation Tabs -->
+    <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-4 mb-6">
+        <button onclick="switchTab('active')" id="tab-active" class="tab-btn active px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-blue-600 text-white">
+            <i class="fa-solid fa-list-check"></i>
+            <span>Active Vacancies (ලැබුණු ඇබෑර්තු)</span>
+            <span id="count-vacancies" class="bg-blue-800 text-blue-200 text-xs px-2 py-0.5 rounded-full ml-2">0</span>
+        </button>
+        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700">
+            <i class="fa-solid fa-folder-minus"></i>
+            <span>No Vacancies (ඇබෑර්තු නැති)</span>
+            <span id="count-novacancies" class="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full ml-2">0</span>
+        </button>
+        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Scraper Errors (දෝෂ)</span>
+            <span id="count-errors" class="bg-rose-950 text-rose-300 text-xs px-2 py-0.5 rounded-full ml-2">0</span>
+        </button>
+        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 ml-auto">
+            <i class="fa-solid fa-globe"></i>
+            <span>Target Sites Manager (ආයතන ලැයිස්තුව)</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: ACTIVE VACANCIES -->
+    <section id="content-active" class="tab-content">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+            <div class="relative w-full sm:w-80">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
+                <input type="text" id="search-active" oninput="filterActiveVacancies()" placeholder="ආයතනය හෝ තැන්නෙන් සොයන්න..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="loadActiveVacancies()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-2 rounded-lg text-slate-300 flex items-center space-x-1">
+                    <i class="fa-solid fa-rotate text-blue-400"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name')">ආයතනය <i class="fa-solid fa-sort text-slate-600"></i></th>
+                            <th class="p-4">තැන්න / Vacancy Post Title</th>
+                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('extract_date')">ලබාගත් දිනය <i class="fa-solid fa-sort text-slate-600"></i></th>
+                            <th class="p-4">අවසාන දිනය</th>
+                            <th class="p-4 text-center">ලින්ක් / Document View</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-active-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="5" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 2: NO VACANCIES -->
+    <section id="content-novacancy" class="tab-content hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4">ආයතනය</th>
+                            <th class="p-4">පරීක්ෂා කළ වෙබ් ලිපිනය (Careers URL)</th>
+                            <th class="p-4">පරීක්ෂා කළ දිනය සහ වේලාව</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-novacancy-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 3: SCRAPER ERRORS -->
+    <section id="content-errors" class="tab-content hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4">ආයතනය</th>
+                            <th class="p-4">වෙබ් ලිපිනය</th>
+                            <th class="p-4">දෝෂයේ ස්වභාවය (Error Reason)</th>
+                            <th class="p-4">උත්සාහ කළ වාර ගණන</th>
+                            <th class="p-4">දිනය/වේලාව</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-errors-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="5" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 4: TARGET SITES MANAGER -->
+    <section id="content-targets" class="tab-content hidden">
+        <!-- Add New Target Site Form -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-6">
+            <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
+                <i class="fa-solid fa-plus text-emerald-400"></i>
+                <span>අලුත් ආයතනයක් / වෙබ් අඩවියක් එකතු කරන්න</span>
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input type="text" id="new-comp-name" placeholder="ආයතනයේ නම (උදා: Commercial Bank)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="url" id="new-comp-url" placeholder="Careers / Vacancy URL (https://...)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <div class="flex space-x-2">
+                    <select id="new-comp-cat" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 flex-1">
+                        <option value="University">University</option>
+                        <option value="Authority">Authority</option>
+                        <option value="Bank">Bank</option>
+                        <option value="Government">Government</option>
+                        <option value="General">General</option>
+                    </select>
+                    <button onclick="addTargetSite()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition flex items-center space-x-1 whitespace-nowrap">
+                        <i class="fa-solid fa-check"></i>
+                        <span>එකතු කරන්න</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target Sites Table -->
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4">ආයතනය</th>
+                            <th class="p-4">Category</th>
+                            <th class="p-4">Careers URL</th>
+                            <th class="p-4 text-center">Status (Active/Inactive)</th>
+                            <th class="p-4 text-center">ක්‍රියාකාරකම්</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-targets-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="5" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    // Global Variables & State
+    let supabaseClient = null;
+    let activeVacanciesData = [];
+    let sortAsc = false;
+
+    // Initialize App
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedUrl = localStorage.getItem('sb_url') || '';
+        const savedKey = localStorage.getItem('sb_key') || '';
+
+        if (savedUrl && savedKey) {
+            document.getElementById('sbUrlInput').value = savedUrl;
+            document.getElementById('sbKeyInput').value = savedKey;
+            initSupabase(savedUrl, savedKey);
+        } else {
+            toggleConfigModal();
+        }
+    });
+
+    function toggleConfigModal() {
+        const modal = document.getElementById('configModal');
+        modal.classList.toggle('hidden');
+    }
+
+    function saveCredentials() {
+        const url = document.getElementById('sbUrlInput').value.trim();
+        const key = document.getElementById('sbKeyInput').value.trim();
+
+        if (!url || !key) {
+            alert('කරුණාකර Supabase URL සහ Key යන දෙකම ඇතුළත් කරන්න.');
+            return;
+        }
+
+        localStorage.setItem('sb_url', url);
+        localStorage.setItem('sb_key', key);
+        initSupabase(url, key);
+        toggleConfigModal();
+    }
+
+    function initSupabase(url, key) {
+        try {
+            const { createClient } = window.supabase;
+            supabaseClient = createClient(url, key);
+            loadAllData();
+        } catch (err) {
+            alert('Supabase Connection Error: ' + err.message);
+        }
+    }
+
+    // Tab Switching
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-slate-800', 'text-slate-400');
+        });
+
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+
+        const selectedBtn = document.getElementById(`tab-${tabName}`);
+        selectedBtn.classList.remove('bg-slate-800', 'text-slate-400');
+        selectedBtn.classList.add('bg-blue-600', 'text-white');
+
+        document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    }
+
+    // Fetch All Data
+    function loadAllData() {
+        if (!supabaseClient) return;
+        loadActiveVacancies();
+        loadNoVacancies();
+        loadScraperErrors();
+        loadTargetSites();
+    }
+
+    // 1. Load Active Vacancies
+    async function loadActiveVacancies() {
+        const { data, error } = await supabaseClient
+            .from('vacancies')
+            .select('*')
+            .order('searched_at', { ascending: false });
+
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        activeVacanciesData = data || [];
+        document.getElementById('count-vacancies').innerText = activeVacanciesData.length;
+        renderActiveVacancies(activeVacanciesData);
+    }
+
+    function renderActiveVacancies(data) {
+        const tbody = document.getElementById('table-active-body');
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">ඇබෑර්තු කිසිවක් හමු නොවීය.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(item => `
+            <tr class="hover:bg-slate-700/30 transition">
+                <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
+                <td class="p-4 text-slate-300 font-medium">${escapeHtml(item.post_title)}</td>
+                <td class="p-4 text-slate-400">${item.extract_date || 'N/A'}</td>
+                <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
+                <td class="p-4 text-center">
+                    <a href="${item.file_link || item.web_link}" target="_blank" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
+                        <i class="fa-solid ${item.is_file ? 'fa-file-pdf' : 'fa-arrow-up-right-from-square'}"></i>
+                        <span>${item.is_file ? 'View PDF/Flyer' : 'Visit Web Page'}</span>
+                    </a>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function filterActiveVacancies() {
+        const query = document.getElementById('search-active').value.toLowerCase();
+        const filtered = activeVacanciesData.filter(item => 
+            item.company_name.toLowerCase().includes(query) || 
+            item.post_title.toLowerCase().includes(query)
+        );
+        renderActiveVacancies(filtered);
+    }
+
+    function sortVacancies(field) {
+        sortAsc = !sortAsc;
+        activeVacanciesData.sort((a, b) => {
+            const valA = (a[field] || '').toString().toLowerCase();
+            const valB = (b[field] || '').toString().toLowerCase();
+            return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        });
+        renderActiveVacancies(activeVacanciesData);
+    }
+
+    // 2. Load No Vacancies
+    async function loadNoVacancies() {
+        const { data, error } = await supabaseClient
+            .from('no_vacancies')
+            .select('*')
+            .order('searched_at', { ascending: false });
+
+        if (error) return;
+
+        document.getElementById('count-novacancies').innerText = data.length;
+        const tbody = document.getElementById('table-novacancy-body');
+        
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(item => `
+            <tr class="hover:bg-slate-700/30 transition">
+                <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
+                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-blue-400 hover:underline flex items-center space-x-1"><span>${item.web_link}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></td>
+                <td class="p-4 text-slate-400">${new Date(item.searched_at).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    }
+
+    // 3. Load Scraper Errors
+    async function loadScraperErrors() {
+        const { data, error } = await supabaseClient
+            .from('scraper_errors')
+            .select('*')
+            .order('searched_at', { ascending: false });
+
+        if (error) return;
+
+        document.getElementById('count-errors').innerText = data.length;
+        const tbody = document.getElementById('table-errors-body');
+
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-400 font-medium">දැනට කිසිදු දෝෂයක් නොමැත! සියලු අඩවි සාර්ථකයි.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map(item => `
+            <tr class="hover:bg-slate-700/30 transition">
+                <td class="p-4 font-semibold text-rose-300">${escapeHtml(item.company_name)}</td>
+                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-slate-400 hover:underline">${item.web_link}</a></td>
+                <td class="p-4 text-rose-400 text-xs font-mono bg-rose-950/20 rounded">${escapeHtml(item.error_message || 'Timeout / Connection Failure')}</td>
+                <td class="p-4 text-center font-bold text-amber-400">${item.retry_count || 5}</td>
+                <td class="p-4 text-slate-400">${new Date(item.searched_at).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    }
+
+    // 4. Load & Manage Target Sites
+    async function loadTargetSites() {
+        const { data, error } = await supabaseClient
+            .from('target_organizations')
+            .select('*')
+            .order('company_name', { ascending: true });
+
+        if (error) return;
+
+        const tbody = document.getElementById('table-targets-body');
+        tbody.innerHTML = data.map(item => `
+            <tr class="hover:bg-slate-700/30 transition">
+                <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
+                <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px]">${item.category || 'General'}</span></td>
+                <td class="p-4"><a href="${item.careers_url}" target="_blank" class="text-blue-400 hover:underline">${item.careers_url}</a></td>
+                <td class="p-4 text-center">
+                    <button onclick="toggleSiteActive(${item.id}, ${item.is_active})" class="px-3 py-1 rounded-full text-[10px] font-bold ${item.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700 text-slate-400'}">
+                        ${item.is_active ? '● Active' : '○ Inactive'}
+                    </button>
+                </td>
+                <td class="p-4 text-center">
+                    <button onclick="deleteTargetSite(${item.id})" class="text-slate-500 hover:text-rose-400 p-1 transition">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function addTargetSite() {
+        const name = document.getElementById('new-comp-name').value.trim();
+        const url = document.getElementById('new-comp-url').value.trim();
+        const cat = document.getElementById('new-comp-cat').value;
+
+        if (!name || !url) {
+            alert('කරුණාකර ආයතනයේ නම සහ Careers URL එක ඇතුළත් කරන්න.');
+            return;
+        }
+
+        const { error } = await supabaseClient
+            .from('target_organizations')
+            .insert([{ company_name: name, careers_url: url, category: cat, is_active: true }]);
+
+        if (error) {
+            alert('දෝෂයක් ඇති විය: ' + error.message);
+        } else {
+            document.getElementById('new-comp-name').value = '';
+            document.getElementById('new-comp-url').value = '';
+            loadTargetSites();
+        }
+    }
+
+    async function toggleSiteActive(id, currentStatus) {
+        await supabaseClient
+            .from('target_organizations')
+            .update({ is_active: !currentStatus })
+            .eq('id', id);
+        loadTargetSites();
+    }
+
+    async function deleteTargetSite(id) {
+        if (confirm('මෙම ආයතනය ලැයිස්තුවෙන් ඉවත් කිරීමට තහවුරු කරන්න?')) {
+            await supabaseClient.from('target_organizations').delete().eq('id', id);
+            loadTargetSites();
+        }
+    }
+
+    function escapeHtml(str) {
+        return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+</script>
