@@ -1,8 +1,18 @@
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Font Awesome Icons CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Supabase JS SDK v2 CDN (unpkg for high availability) -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+
 <!-- Header -->
-<header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+<header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 p-2 rounded-lg text-white">
+            <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-600/30">
                 <i class="fa-solid fa-briefcase text-xl"></i>
             </div>
             <div>
@@ -12,36 +22,38 @@
         </div>
 
         <!-- Credentials Config Trigger -->
-        <button onclick="toggleConfigModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-lg flex items-center space-x-2 border border-slate-600 transition">
+        <button onclick="toggleConfigModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3.5 py-2 rounded-lg flex items-center space-x-2 border border-slate-600 transition shadow-sm">
             <i class="fa-solid fa-key text-amber-400"></i>
-            <span>Supabase Keys Setup</span>
+            <span>Supabase Setup</span>
         </button>
     </div>
 </header>
 
 <!-- Credentials Modal -->
-<div id="configModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
-        <h3 class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+<div id="configModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl relative">
+        <h3 class="text-lg font-bold text-white mb-2 flex items-center space-x-2">
             <i class="fa-solid fa-sliders text-blue-400"></i>
             <span>Supabase Credentials Setup</span>
         </h3>
-        <p class="text-xs text-slate-400 mb-4">Dashboard එක Supabase එකට Connect කිරීමට පහත විස්තර ඇතුළත් කරන්න.</p>
+        <p class="text-xs text-slate-400 mb-5 leading-relaxed">
+            Dashboard එක Supabase එකට Connect කිරීමට පහත විස්තර ඇතුළත් කරන්න. (මෙහි ඇතුළත් කරන දත්ත ඔබේ Browser එකේ සුරක්ෂිතව Save වේ)
+        </p>
         
         <div class="space-y-4">
             <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Supabase URL</label>
-                <input type="text" id="sbUrlInput" placeholder="https://xxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Supabase Project URL</label>
+                <input type="text" id="sbUrlInput" placeholder="https://xxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
             </div>
             <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Supabase Anon Key (Public Key)</label>
-                <input type="password" id="sbKeyInput" placeholder="eyJhbGciOi..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Supabase Anon Key (Public Key)</label>
+                <input type="password" id="sbKeyInput" placeholder="eyJhbGciOi..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
             </div>
         </div>
 
         <div class="mt-6 flex justify-end space-x-3">
-            <button onclick="toggleConfigModal()" class="px-4 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg">Cancel</button>
-            <button onclick="saveCredentials()" class="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">Save & Connect</button>
+            <button onclick="toggleConfigModal()" class="px-4 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition">Cancel</button>
+            <button onclick="saveCredentials()" class="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition shadow-md shadow-blue-600/30">Save & Connect</button>
         </div>
     </div>
 </div>
@@ -49,26 +61,35 @@
 <!-- Main Container -->
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+    <!-- Connection Alert Banner (if disconnected) -->
+    <div id="connStatusAlert" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl text-xs flex items-center justify-between mb-6">
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
+            <span>Supabase Credentials තවමත් සකසා නැත. <b>"Supabase Setup"</b> Button එක ක්ලික් කර URL සහ Key ඇතුළත් කරන්න.</span>
+        </div>
+        <button onclick="toggleConfigModal()" class="underline font-bold hover:text-white">Setup Now</button>
+    </div>
+
     <!-- Navigation Tabs -->
     <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-4 mb-6">
-        <button onclick="switchTab('active')" id="tab-active" class="tab-btn active px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-blue-600 text-white">
+        <button onclick="switchTab('active')" id="tab-active" class="tab-btn active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
             <i class="fa-solid fa-list-check"></i>
             <span>Active Vacancies (ලැබුණු ඇබෑර්තු)</span>
-            <span id="count-vacancies" class="bg-blue-800 text-blue-200 text-xs px-2 py-0.5 rounded-full ml-2">0</span>
+            <span id="count-vacancies" class="bg-blue-950/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
-        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700">
+        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-folder-minus"></i>
             <span>No Vacancies (ඇබෑර්තු නැති)</span>
-            <span id="count-novacancies" class="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full ml-2">0</span>
+            <span id="count-novacancies" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
-        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700">
-            <i class="fa-solid fa-triangle-exclamation"></i>
+        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+            <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
             <span>Scraper Errors (දෝෂ)</span>
-            <span id="count-errors" class="bg-rose-950 text-rose-300 text-xs px-2 py-0.5 rounded-full ml-2">0</span>
+            <span id="count-errors" class="bg-rose-950/80 text-rose-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
-        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn px-4 py-2.5 rounded-lg text-sm font-medium transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 ml-auto">
-            <i class="fa-solid fa-globe"></i>
-            <span>Target Sites Manager (ආයතන ලැයිස්තුව)</span>
+        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 ml-auto">
+            <i class="fa-solid fa-globe text-emerald-400"></i>
+            <span>Target Sites Manager</span>
         </button>
     </div>
 
@@ -77,12 +98,12 @@
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
             <div class="relative w-full sm:w-80">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
-                <input type="text" id="search-active" oninput="filterActiveVacancies()" placeholder="ආයතනය හෝ තැන්නෙන් සොයන්න..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="text" id="search-active" oninput="filterActiveVacancies()" placeholder="ආයතනය හෝ තැන්නෙන් සොයන්න..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
             </div>
-            <div class="flex items-center space-x-2">
-                <button onclick="loadActiveVacancies()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-2 rounded-lg text-slate-300 flex items-center space-x-1">
+            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                <button onclick="loadActiveVacancies()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3.5 py-2 rounded-lg text-slate-300 flex items-center space-x-2 transition">
                     <i class="fa-solid fa-rotate text-blue-400"></i>
-                    <span>Refresh</span>
+                    <span>Refresh Data</span>
                 </button>
             </div>
         </div>
@@ -92,9 +113,13 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name')">ආයතනය <i class="fa-solid fa-sort text-slate-600"></i></th>
+                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name')">
+                                ආයතනය <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
+                            </th>
                             <th class="p-4">තැන්න / Vacancy Post Title</th>
-                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('extract_date')">ලබාගත් දිනය <i class="fa-solid fa-sort text-slate-600"></i></th>
+                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('extract_date')">
+                                ලබාගත් දිනය <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
+                            </th>
                             <th class="p-4">අවසාන දිනය</th>
                             <th class="p-4 text-center">ලින්ක් / Document View</th>
                         </tr>
@@ -137,7 +162,7 @@
                             <th class="p-4">ආයතනය</th>
                             <th class="p-4">වෙබ් ලිපිනය</th>
                             <th class="p-4">දෝෂයේ ස්වභාවය (Error Reason)</th>
-                            <th class="p-4">උත්සාහ කළ වාර ගණන</th>
+                            <th class="p-4 text-center">උත්සාහ කළ වාර ගණන</th>
                             <th class="p-4">දිනය/වේලාව</th>
                         </tr>
                     </thead>
@@ -152,14 +177,14 @@
     <!-- TAB 4: TARGET SITES MANAGER -->
     <section id="content-targets" class="tab-content hidden">
         <!-- Add New Target Site Form -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-6">
-            <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
-                <i class="fa-solid fa-plus text-emerald-400"></i>
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-6 shadow-lg">
+            <h3 class="text-sm font-bold text-white mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-plus-circle text-emerald-400"></i>
                 <span>අලුත් ආයතනයක් / වෙබ් අඩවියක් එකතු කරන්න</span>
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" id="new-comp-name" placeholder="ආයතනයේ නම (උදා: Commercial Bank)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                <input type="url" id="new-comp-url" placeholder="Careers / Vacancy URL (https://...)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="text" id="new-comp-name" placeholder="ආයතනයේ නම (උදා: Commercial Bank)" class="bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="url" id="new-comp-url" placeholder="Careers / Vacancy URL (https://...)" class="bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
                 <div class="flex space-x-2">
                     <select id="new-comp-cat" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 flex-1">
                         <option value="University">University</option>
@@ -168,8 +193,8 @@
                         <option value="Government">Government</option>
                         <option value="General">General</option>
                     </select>
-                    <button onclick="addTargetSite()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition flex items-center space-x-1 whitespace-nowrap">
-                        <i class="fa-solid fa-check"></i>
+                    <button onclick="addTargetSite()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-lg transition flex items-center space-x-1.5 whitespace-nowrap shadow-md shadow-emerald-600/20">
+                        <i class="fa-solid fa-plus"></i>
                         <span>එකතු කරන්න</span>
                     </button>
                 </div>
@@ -185,7 +210,7 @@
                             <th class="p-4">ආයතනය</th>
                             <th class="p-4">Category</th>
                             <th class="p-4">Careers URL</th>
-                            <th class="p-4 text-center">Status (Active/Inactive)</th>
+                            <th class="p-4 text-center">Status</th>
                             <th class="p-4 text-center">ක්‍රියාකාරකම්</th>
                         </tr>
                     </thead>
@@ -199,13 +224,14 @@
 
 </main>
 
+<!-- Core App Logic -->
 <script>
-    // Global Variables & State
+    // Global Variables
     let supabaseClient = null;
     let activeVacanciesData = [];
     let sortAsc = false;
 
-    // Initialize App
+    // On DOM Loaded
     window.addEventListener('DOMContentLoaded', () => {
         const savedUrl = localStorage.getItem('sb_url') || '';
         const savedKey = localStorage.getItem('sb_key') || '';
@@ -215,6 +241,7 @@
             document.getElementById('sbKeyInput').value = savedKey;
             initSupabase(savedUrl, savedKey);
         } else {
+            document.getElementById('connStatusAlert').classList.remove('hidden');
             toggleConfigModal();
         }
     });
@@ -235,11 +262,18 @@
 
         localStorage.setItem('sb_url', url);
         localStorage.setItem('sb_key', key);
+        document.getElementById('connStatusAlert').classList.add('hidden');
         initSupabase(url, key);
         toggleConfigModal();
     }
 
     function initSupabase(url, key) {
+        // Check if window.supabase is safely loaded
+        if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
+            alert('Supabase JS Library එක Load වුණේ නැත. කරුණාකර Internet connection එක හෝ AdBlocker settings පරීක්ෂා කරන්න.');
+            return;
+        }
+
         try {
             const { createClient } = window.supabase;
             supabaseClient = createClient(url, key);
@@ -249,10 +283,10 @@
         }
     }
 
-    // Tab Switching
+    // Tab Switching Logic
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
             btn.classList.add('bg-slate-800', 'text-slate-400');
         });
 
@@ -260,7 +294,7 @@
 
         const selectedBtn = document.getElementById(`tab-${tabName}`);
         selectedBtn.classList.remove('bg-slate-800', 'text-slate-400');
-        selectedBtn.classList.add('bg-blue-600', 'text-white');
+        selectedBtn.classList.add('bg-blue-600', 'text-white', 'shadow-md');
 
         document.getElementById(`content-${tabName}`).classList.remove('hidden');
     }
@@ -274,15 +308,16 @@
         loadTargetSites();
     }
 
-    // 1. Load Active Vacancies
+    // 1. Active Vacancies
     async function loadActiveVacancies() {
+        if (!supabaseClient) return;
         const { data, error } = await supabaseClient
             .from('vacancies')
             .select('*')
             .order('searched_at', { ascending: false });
 
         if (error) {
-            console.error(error);
+            console.error('Error fetching vacancies:', error);
             return;
         }
 
@@ -299,13 +334,13 @@
         }
 
         tbody.innerHTML = data.map(item => `
-            <tr class="hover:bg-slate-700/30 transition">
+            <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
                 <td class="p-4 text-slate-300 font-medium">${escapeHtml(item.post_title)}</td>
                 <td class="p-4 text-slate-400">${item.extract_date || 'N/A'}</td>
                 <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
                 <td class="p-4 text-center">
-                    <a href="${item.file_link || item.web_link}" target="_blank" class="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
+                    <a href="${item.file_link || item.web_link}" target="_blank" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
                         <i class="fa-solid ${item.is_file ? 'fa-file-pdf' : 'fa-arrow-up-right-from-square'}"></i>
                         <span>${item.is_file ? 'View PDF/Flyer' : 'Visit Web Page'}</span>
                     </a>
@@ -317,8 +352,8 @@
     function filterActiveVacancies() {
         const query = document.getElementById('search-active').value.toLowerCase();
         const filtered = activeVacanciesData.filter(item => 
-            item.company_name.toLowerCase().includes(query) || 
-            item.post_title.toLowerCase().includes(query)
+            (item.company_name && item.company_name.toLowerCase().includes(query)) || 
+            (item.post_title && item.post_title.toLowerCase().includes(query))
         );
         renderActiveVacancies(filtered);
     }
@@ -333,8 +368,9 @@
         renderActiveVacancies(activeVacanciesData);
     }
 
-    // 2. Load No Vacancies
+    // 2. No Vacancies
     async function loadNoVacancies() {
+        if (!supabaseClient) return;
         const { data, error } = await supabaseClient
             .from('no_vacancies')
             .select('*')
@@ -342,25 +378,26 @@
 
         if (error) return;
 
-        document.getElementById('count-novacancies').innerText = data.length;
+        document.getElementById('count-novacancies').innerText = (data || []).length;
         const tbody = document.getElementById('table-novacancy-body');
         
-        if (!data.length) {
+        if (!data || !data.length) {
             tbody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>`;
             return;
         }
 
         tbody.innerHTML = data.map(item => `
-            <tr class="hover:bg-slate-700/30 transition">
+            <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
-                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-blue-400 hover:underline flex items-center space-x-1"><span>${item.web_link}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></td>
-                <td class="p-4 text-slate-400">${new Date(item.searched_at).toLocaleString()}</td>
+                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-blue-400 hover:underline inline-flex items-center space-x-1"><span>${escapeHtml(item.web_link)}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></td>
+                <td class="p-4 text-slate-400">${item.searched_at ? new Date(item.searched_at).toLocaleString() : 'N/A'}</td>
             </tr>
         `).join('');
     }
 
-    // 3. Load Scraper Errors
+    // 3. Scraper Errors
     async function loadScraperErrors() {
+        if (!supabaseClient) return;
         const { data, error } = await supabaseClient
             .from('scraper_errors')
             .select('*')
@@ -368,27 +405,28 @@
 
         if (error) return;
 
-        document.getElementById('count-errors').innerText = data.length;
+        document.getElementById('count-errors').innerText = (data || []).length;
         const tbody = document.getElementById('table-errors-body');
 
-        if (!data.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-400 font-medium">දැනට කිසිදු දෝෂයක් නොමැත! සියලු අඩවි සාර්ථකයි.</td></tr>`;
+        if (!data || !data.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-400 font-medium"><i class="fa-solid fa-circle-check mr-1"></i> දැනට කිසිදු දෝෂයක් නොමැත! සියලු අඩවි සාර්ථකයි.</td></tr>`;
             return;
         }
 
         tbody.innerHTML = data.map(item => `
-            <tr class="hover:bg-slate-700/30 transition">
+            <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
                 <td class="p-4 font-semibold text-rose-300">${escapeHtml(item.company_name)}</td>
-                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-slate-400 hover:underline">${item.web_link}</a></td>
-                <td class="p-4 text-rose-400 text-xs font-mono bg-rose-950/20 rounded">${escapeHtml(item.error_message || 'Timeout / Connection Failure')}</td>
-                <td class="p-4 text-center font-bold text-amber-400">${item.retry_count || 5}</td>
-                <td class="p-4 text-slate-400">${new Date(item.searched_at).toLocaleString()}</td>
+                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-slate-400 hover:underline">${escapeHtml(item.web_link)}</a></td>
+                <td class="p-4 text-rose-400 text-xs font-mono bg-rose-950/20 rounded p-2 border border-rose-900/30">${escapeHtml(item.error_message || 'Timeout / Connection Failure')}</td>
+                <td class="p-4 text-center font-bold text-amber-400">${item.retry_count || 1}</td>
+                <td class="p-4 text-slate-400">${item.searched_at ? new Date(item.searched_at).toLocaleString() : 'N/A'}</td>
             </tr>
         `).join('');
     }
 
-    // 4. Load & Manage Target Sites
+    // 4. Target Sites Manager
     async function loadTargetSites() {
+        if (!supabaseClient) return;
         const { data, error } = await supabaseClient
             .from('target_organizations')
             .select('*')
@@ -397,18 +435,23 @@
         if (error) return;
 
         const tbody = document.getElementById('table-targets-body');
+        if (!data || !data.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">ආයතන කිසිවක් ඇතුළත් කර නොමැත.</td></tr>`;
+            return;
+        }
+
         tbody.innerHTML = data.map(item => `
-            <tr class="hover:bg-slate-700/30 transition">
+            <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
-                <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px]">${item.category || 'General'}</span></td>
-                <td class="p-4"><a href="${item.careers_url}" target="_blank" class="text-blue-400 hover:underline">${item.careers_url}</a></td>
+                <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold">${escapeHtml(item.category || 'General')}</span></td>
+                <td class="p-4"><a href="${item.careers_url}" target="_blank" class="text-blue-400 hover:underline">${escapeHtml(item.careers_url)}</a></td>
                 <td class="p-4 text-center">
-                    <button onclick="toggleSiteActive(${item.id}, ${item.is_active})" class="px-3 py-1 rounded-full text-[10px] font-bold ${item.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-700 text-slate-400'}">
+                    <button onclick="toggleSiteActive(${item.id}, ${item.is_active})" class="px-3 py-1 rounded-full text-[10px] font-bold transition ${item.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}">
                         ${item.is_active ? '● Active' : '○ Inactive'}
                     </button>
                 </td>
                 <td class="p-4 text-center">
-                    <button onclick="deleteTargetSite(${item.id})" class="text-slate-500 hover:text-rose-400 p-1 transition">
+                    <button onclick="deleteTargetSite(${item.id})" class="text-slate-500 hover:text-rose-400 p-1.5 transition">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </td>
@@ -417,6 +460,10 @@
     }
 
     async function addTargetSite() {
+        if (!supabaseClient) {
+            alert('Supabase Connect වී නොමැත.');
+            return;
+        }
         const name = document.getElementById('new-comp-name').value.trim();
         const url = document.getElementById('new-comp-url').value.trim();
         const cat = document.getElementById('new-comp-cat').value;
@@ -440,6 +487,7 @@
     }
 
     async function toggleSiteActive(id, currentStatus) {
+        if (!supabaseClient) return;
         await supabaseClient
             .from('target_organizations')
             .update({ is_active: !currentStatus })
@@ -448,12 +496,14 @@
     }
 
     async function deleteTargetSite(id) {
+        if (!supabaseClient) return;
         if (confirm('මෙම ආයතනය ලැයිස්තුවෙන් ඉවත් කිරීමට තහවුරු කරන්න?')) {
             await supabaseClient.from('target_organizations').delete().eq('id', id);
             loadTargetSites();
         }
     }
 
+    // Helper to prevent XSS Attacks
     function escapeHtml(str) {
         return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
