@@ -1,0 +1,31 @@
+name: Sri Lanka Job & Gazette Scraper
+
+on:
+  schedule:
+    # පාන්දර 2:00 AM (SL Time)
+    - cron: '30 20 * * *'
+    # පාන්දර 5:00 AM (SL Time)
+    - cron: '30 23 * * *'
+  workflow_dispatch: # Admin Panel එකෙන් / GitHub එකෙන් Manual Run කිරීමට
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests beautifulsoup4 supabase
+
+      - name: Run Scraper Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python scraper.py
