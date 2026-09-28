@@ -2,11 +2,9 @@ name: Sri Lanka Job & Gazette Scraper
 
 on:
   schedule:
-    # පාන්දර 2:00 AM (SL Time)
-    - cron: '30 20 * * *'
-    # පාන්දර 5:00 AM (SL Time)
-    - cron: '30 23 * * *'
-  workflow_dispatch: # Admin Panel එකෙන් / GitHub එකෙන් Manual Run කිරීමට
+    - cron: '30 20 * * *' # පාන්දර 2:00 AM (SL Time)
+    - cron: '30 23 * * *' # පාන්දර 5:00 AM (SL Time)
+  workflow_dispatch:
 
 jobs:
   run-scraper:
@@ -22,10 +20,12 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests beautifulsoup4 supabase
+          pip install -r requirements.txt
 
       - name: Run Scraper Script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: python scraper.py
