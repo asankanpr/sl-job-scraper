@@ -1,8 +1,11 @@
 import os
+import re
 import time
-import requests
+import json
+import tempfile
 import urllib3
 import ssl
+import requests
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
 from datetime import datetime
@@ -10,19 +13,71 @@ from urllib.parse import urljoin, urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
 
-# SSL Warnings Disable කිරීම
+# Google Drive Libraries
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+# Disable SSL Warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Supabase Credentials
+# Supabase Configurations
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "").strip()
+GDRIVE_JSON = os.environ.get("GDRIVE_SERVICE_ACCOUNT_JSON", "").strip()
+GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID", "").strip()
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Supabase URL and Key must be provided!")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# 1. Custom Legacy SSL Adapter (ලංකාවේ පැරණි Gov/Edu Servers සඳහා)
+# --- 1. Google Drive Connection Setup ---
+def get_gdrive_service():
+    if not GDRIVE_JSON or not GDRIVE_FOLDER_ID:
+        print("⚠️ Google Drive secrets not configured. Skipping Drive upload.")
+        return None
+    try:
+        info = json.loads(GDRIVE_JSON)
+        creds = Credentials.from_service_account_info(
+            info, 
+            scopes=['https://www.googleapis.com/auth/drive.file']
+        )
+        return build('drive', 'v3', credentials=creds)
+    except Exception as e:
+        print(f"❌ Google Drive Auth Error: {e}")
+        return None
+
+def upload_file_to_drive(service, file_path, file_name, is_image=False):
+    """Google Drive එකට File එක Upload කර Public Link එක සදාගැනීම (Option 2)"""
+    if not service:
+        return None
+    try:
+        file_metadata = {
+            'name': file_name,
+            'parents': [GDRIVE_FOLDER_ID]
+        }
+        media = MediaFileUpload(file_path, resumable=True)
+        uploaded = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+        file_id = uploaded.get('id')
+
+        # Public Access Permission ලබාදීම
+        service.permissions().create(
+            fileId=file_id,
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+
+        # Option 2 Logic: Image එකක් නම් Direct Preview Link එක සෑදීම
+        if is_image:
+            return f"https://lh3.googleusercontent.com/d/{file_id}"
+        else:
+            return uploaded.get('webViewLink', f"https://drive.google.com/file/d/{file_id}/view")
+    except Exception as e:
+        print(f"❌ Drive Upload Error for {file_name}: {e}")
+        return None
+
+
+# --- 2. Custom Legacy SSL & Smart Session ---
 class CustomSSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
         ctx = create_urllib3_context()
@@ -42,21 +97,17 @@ def get_smart_session():
     session.mount('http://', adapter)
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,si;q=0.8',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,si;q=0.8'
     })
     return session
 
-# 2. Smart Fallback Fetcher (Domain, HTTP/HTTPS, www වෙනස්කම් Auto Try කිරීම)
-def fetch_url_smart(session, original_url, max_retries=3):
+def fetch_url_smart(session, original_url, max_retries=2):
     parsed = urlparse(original_url)
     netloc = parsed.netloc
     path = parsed.path or '/'
     query = f"?{parsed.query}" if parsed.query else ""
 
-    # Alternate Domain/Protocol Combinations සෑදීම
     domain_variants = [netloc]
     if netloc.startswith('www.'):
         domain_variants.append(netloc[4:])
@@ -68,69 +119,75 @@ def fetch_url_smart(session, original_url, max_retries=3):
         url_variants.append(f"https://{d}{path}{query}")
         url_variants.append(f"http://{d}{path}{query}")
 
-    # Unique list එකක් තබාගැනීම
-    unique_urls = []
-    for u in url_variants:
-        if u not in unique_urls:
-            unique_urls.append(u)
-
-    last_error = ""
     for attempt in range(1, max_retries + 1):
-        for target_url in unique_urls:
+        for target_url in url_variants:
             try:
-                res = session.get(target_url, timeout=25, verify=False)
+                res = session.get(target_url, timeout=20, verify=False)
                 if res.status_code == 200 and len(res.content) > 300:
-                    return res, target_url, attempt
-            except Exception as e:
-                last_error = str(e)
+                    return res, target_url
+            except Exception:
                 continue
-        time.sleep(3)
+        time.sleep(2)
 
-    return None, original_url, last_error
+    return None, original_url
 
-# 3. Tactical Deep Extractor (Sinhala & English Keywords)
-KEYWORDS = [
+
+# --- 3. Smart Keyword & Junk Filtering Lists ---
+# Positive Vacancy Keywords
+JOB_KEYWORDS = [
     'vacancy', 'vacancies', 'career', 'careers', 'opening', 'openings',
     'recruit', 'recruitment', 'employment', 'job', 'jobs', 'gazette',
-    'notice', 'notices', 'download', 'application', 'ඇබෑර්තු', 'රැකියා', 'ගැසට්'
+    'post of', 'officer', 'executive', 'assistant', 'lecturer', 'manager',
+    'ඇබෑර්තු', 'රැකියා', 'ගැසට්', 'අයදුම්පත්', 'තැන්'
 ]
 
-def extract_vacancies(soup, base_url):
-    extracted = []
-    seen_links = set()
+# Negative Junk Keywords (Procurement, Exams, Tenders)
+JUNK_KEYWORDS = [
+    'tender', 'tenders', 'quotation', 'bids', 'bid', 'procurement', 'supplier',
+    'exam', 'examination', 'result', 'results', 'timetable', 'seminar', 'workshop',
+    'event', 'auction', 'ප්‍රසම්පාදන', 'ලංසු', 'විභාග', 'ප්‍රතිඵල', 'ලේඛන'
+]
 
-    for a in soup.find_all('a', href=True):
-        href = a['href'].strip()
-        text = a.get_text(strip=True)
-        title_attr = a.get('title', '')
-        
-        combined_text = f"{text} {title_attr} {href}".lower()
-        
-        # Keyword match වීම පරීක්ෂා කිරීම
-        if any(k in combined_text for k in KEYWORDS):
-            full_url = urljoin(base_url, href)
-            
-            # Junk / Anchor links ඉවත් කිරීම
-            if full_url in seen_links or full_url.endswith('#') or 'javascript:' in full_url:
+HUB_KEYWORDS = ['career', 'careers', 'vacancy', 'vacancies', 'job', 'jobs', 'notice', 'notices', 'ඇබෑර්තු']
+
+
+# --- 4. Expiry Date Detection (Closing Date Parser) ---
+def extract_and_check_expiry(text_content):
+    """
+    පෙළ ඇතුළෙන් Closing Date එක සොයා අද දිනට වඩා පරණදැයි (Expired) පරීක්ෂා කිරීම
+    """
+    date_patterns = [
+        r'(?:closing date|valid until|before|අවසාන දිනය|අවසන් දිනය)[\s:-]*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})',
+        r'(?:closing date|valid until|before|අවසාන දිනය|අවසන් දිනය)[\s:-]*(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})',
+        r'(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})',
+        r'(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})'
+    ]
+
+    for pattern in date_patterns:
+        match = re.search(pattern, text_content, re.IGNORECASE)
+        if match:
+            raw_date = match.group(1).replace('.', '-').replace('/', '-')
+            try:
+                parts = raw_date.split('-')
+                if len(parts[0]) == 4: # YYYY-MM-DD
+                    parsed_date = datetime.strptime(raw_date, '%Y-%m-%d').date()
+                else: # DD-MM-YYYY
+                    parsed_date = datetime.strptime(raw_date, '%d-%m-%Y').date()
+                
+                # අද දිනට වඩා පරණ නම් True (Expired) ලෙස return කරයි
+                is_expired = parsed_date < datetime.now().date()
+                return parsed_date.strftime('%Y-%m-%d'), is_expired
+            except Exception:
                 continue
-            
-            seen_links.add(full_url)
-            
-            # Post Title පිරිසිදු කරගැනීම
-            display_title = text if len(text) > 3 else (title_attr or "Vacancy Notice / Advertisement")
-            extracted.append({
-                "title": display_title[:200],
-                "link": full_url,
-                "is_file": full_url.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'))
-            })
 
-    return extracted
+    return "N/A", False
 
-# 4. Main Processing Workflow
+
+# --- 5. Main Extractor Workflow ---
 def process_scraping():
     session = get_smart_session()
+    gdrive_service = get_gdrive_service()
 
-    # Target Sites ලබාගැනීම
     response = supabase.table('target_organizations').select('*').eq('is_active', True).execute()
     targets = response.data
 
@@ -138,46 +195,122 @@ def process_scraping():
 
     for target in targets:
         company_name = target['company_name']
-        url = target['careers_url']
-        print(f"\n[Scanning]: {company_name} ({url})")
+        main_url = target['careers_url']
+        print(f"\n[Scanning]: {company_name} ({main_url})")
 
-        res, working_url, err_detail = fetch_url_smart(session, url, max_retries=3)
+        res, working_url = fetch_url_smart(session, main_url)
 
         if not res:
-            print(f"❌ [Failed]: {company_name} after retries. Reason: {err_detail[:100]}")
-            # Table 3 (scraper_errors) එකට Insert කිරීම
+            print(f"❌ [Failed Connection]: {company_name}")
             supabase.table('scraper_errors').insert({
                 "company_name": company_name,
-                "web_link": url,
-                "error_message": f"Connection Failure / Timeout: {err_detail[:150]}",
+                "web_link": main_url,
+                "error_message": "Connection failure after smart retry",
                 "retry_count": 5,
                 "searched_at": datetime.now().isoformat()
             }).execute()
             continue
 
-        # HTML Parse කිරීම
         soup = BeautifulSoup(res.content, 'html.parser')
-        vacancies = extract_vacancies(soup, working_url)
 
-        if vacancies:
-            print(f"✅ [Success]: Found {len(vacancies)} vacancy items for {company_name}")
-            for item in vacancies:
-                # Deduplication: කලින් මේ Record එක තියෙනවාදැයි බැලීම
+        # Feature 1: Hub Finder (Main Page එකක් දුන්නොත් Vacancy Page එක සොයාගැනීම)
+        target_pages = [working_url]
+        for a in soup.find_all('a', href=True):
+            link_text = a.text.strip().lower()
+            href = a['href'].lower()
+            if any(hk in link_text or hk in href for hk in HUB_KEYWORDS):
+                full_hub = urljoin(working_url, a['href'])
+                if full_hub not in target_pages:
+                    target_pages.append(full_hub)
+
+        found_items = []
+        seen_links = set()
+
+        for page_url in target_pages[:3]: # පළමු Hub Pages 3 පරීක්ෂා කිරීම
+            p_res, p_url = fetch_url_smart(session, page_url)
+            if not p_res:
+                continue
+            
+            p_soup = BeautifulSoup(p_res.content, 'html.parser')
+
+            for a in p_soup.find_all('a', href=True):
+                href = a['href'].strip()
+                title_text = a.get_text(strip=True)
+                combined = f"{title_text} {href}".lower()
+
+                # Feature 2: Junk Filter Check (Tenders/Exams Ignore කිරීම)
+                if any(jk in combined for jk in JUNK_KEYWORDS):
+                    continue
+
+                # Positive Vacancy Check
+                if any(jk in combined for jk in JOB_KEYWORDS):
+                    full_link = urljoin(p_url, href)
+
+                    if full_link in seen_links or full_link.endswith('#') or 'javascript:' in full_link:
+                        continue
+                    seen_links.add(full_link)
+
+                    display_title = title_text if len(title_text) > 4 else "Vacancy Notice"
+
+                    # Feature 3: Closing Date & Expire Check
+                    closing_date, is_expired = extract_and_check_expiry(combined)
+                    if is_expired:
+                        print(f"⏭️ [Skipped Expired]: {display_title} (Expired: {closing_date})")
+                        continue
+
+                    is_file = full_link.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.webp'))
+                    is_image = full_link.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+
+                    found_items.append({
+                        "title": display_title[:200],
+                        "link": full_link,
+                        "closing_date": closing_date,
+                        "is_file": is_file,
+                        "is_image": is_image
+                    })
+
+        if found_items:
+            print(f"✅ [Success]: Found {len(found_items)} active vacancies for {company_name}")
+            for item in found_items:
+                # Deduplication Check
                 existing = supabase.table('vacancies').select('id').eq('company_name', company_name).eq('web_link', item['link']).execute()
                 
                 if not existing.data:
+                    drive_link = None
+
+                    # Feature 4: Google Drive Auto Upload (Option 2)
+                    if item['is_file'] and gdrive_service:
+                        try:
+                            f_res = session.get(item['link'], timeout=25, verify=False)
+                            if f_res.status_code == 200:
+                                ext = ".jpg" if item['is_image'] else ".pdf"
+                                temp_name = f"{company_name}_{int(time.time())}{ext}".replace(" ", "_")
+                                
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
+                                    temp_file.write(f_res.content)
+                                    temp_path = temp_file.name
+
+                                # Upload to Drive
+                                drive_link = upload_file_to_drive(gdrive_service, temp_path, temp_name, is_image=item['is_image'])
+                                os.remove(temp_path)
+                        except Exception as e:
+                            print(f"⚠️ Could not download file for Drive upload: {e}")
+
+                    # Fallback Logic: Drive Link නැත්නම් Original Link එක භාවිතා කිරීම
+                    final_file_link = drive_link or item['link']
+
                     supabase.table('vacancies').insert({
                         "company_name": company_name,
                         "post_title": item['title'],
                         "extract_date": datetime.now().strftime('%Y-%m-%d'),
-                        "closing_date": "N/A",
-                        "web_link": working_url,
-                        "file_link": item['link'],
+                        "closing_date": item['closing_date'],
+                        "web_link": item['link'],
+                        "file_link": final_file_link,
                         "is_file": item['is_file'],
                         "searched_at": datetime.now().isoformat()
                     }).execute()
-            
-            # සාර්ථක වුණ නිසා පැරණි Errors තිබුණා නම් Clear කිරීම
+
+            # Error Log Cleanup
             supabase.table('scraper_errors').delete().eq('company_name', company_name).execute()
 
         else:
