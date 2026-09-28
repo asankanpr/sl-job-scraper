@@ -6,6 +6,7 @@ import tempfile
 import urllib3
 import ssl
 import requests
+import threading
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
 from datetime import datetime
@@ -33,6 +34,9 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Thread Lock for Google Drive API to prevent memory corruption (Exit Code 134 fix)
+gdrive_lock = threading.Lock()
+
 # --- 1. Google Drive Connection Setup ---
 def get_gdrive_service():
     if not GDRIVE_JSON or not GDRIVE_FOLDER_ID:
@@ -52,29 +56,30 @@ def get_gdrive_service():
 def upload_file_to_drive(service, file_path, file_name, is_image=False):
     if not service:
         return None
-    try:
-        file_metadata = {
-            'name': file_name,
-            'parents': [GDRIVE_FOLDER_ID]
-        }
-        media = MediaFileUpload(file_path, resumable=True)
-        uploaded = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
-        file_id = uploaded.get('id')
+    with gdrive_lock:  # Safe Thread Locking for Google Drive API
+        try:
+            file_metadata = {
+                'name': file_name,
+                'parents': [GDRIVE_FOLDER_ID]
+            }
+            media = MediaFileUpload(file_path, resumable=True)
+            uploaded = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
+            file_id = uploaded.get('id')
 
-        # Public Permission
-        service.permissions().create(
-            fileId=file_id,
-            body={'type': 'anyone', 'role': 'reader'}
-        ).execute()
+            # Public Permission
+            service.permissions().create(
+                fileId=file_id,
+                body={'type': 'anyone', 'role': 'reader'}
+            ).execute()
 
-        # Direct Image Link (Option 2)
-        if is_image:
-            return f"https://lh3.googleusercontent.com/d/{file_id}"
-        else:
-            return uploaded.get('webViewLink', f"https://drive.google.com/file/d/{file_id}/view")
-    except Exception as e:
-        print(f"❌ Drive Upload Error for {file_name}: {e}")
-        return None
+            # Direct Image Link (Option 2)
+            if is_image:
+                return f"https://lh3.googleusercontent.com/d/{file_id}"
+            else:
+                return uploaded.get('webViewLink', f"https://drive.google.com/file/d/{file_id}/view")
+        except Exception as e:
+            print(f"❌ Drive Upload Error for {file_name}: {e}")
+            return None
 
 
 # --- 2. Custom Legacy SSL & Thread-Safe Session ---
@@ -261,7 +266,7 @@ def process_single_target(target, gdrive_service):
             if not existing.data:
                 drive_link = None
 
-                # Google Drive Upload
+                # Google Drive Upload (Protected with Lock)
                 if item['is_file'] and gdrive_service:
                     try:
                         f_res = session.get(item['link'], timeout=20, verify=False)
@@ -312,8 +317,8 @@ def process_scraping():
     print(f"🚀 === Starting Multi-threaded Fast Scraper for {len(targets)} active targets ===")
     start_time = time.time()
 
-    # Parallel Execution (Workers = 10 Max)
-    max_workers = min(10, len(targets)) if targets else 1
+    # Parallel Execution (Workers = 5 to be safe with memory)
+    max_workers = min(5, len(targets)) if targets else 1
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process_single_target, target, gdrive_service) for target in targets]
         for future in as_completed(futures):
