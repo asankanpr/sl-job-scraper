@@ -98,7 +98,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
             <div class="relative w-full sm:w-80">
                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
-                <input type="text" id="search-active" oninput="filterActiveVacancies()" placeholder="ආයතනය හෝ තැන්නෙන් සොයන්න..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
+                <input type="text" id="search-active" oninput="filterActiveVacancies()" placeholder="ආයතනය, තැන්න හෝ පඩියෙන් සොයන්න..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
             </div>
             <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
                 <button onclick="loadActiveVacancies()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3.5 py-2 rounded-lg text-slate-300 flex items-center space-x-2 transition">
@@ -121,11 +121,12 @@
                                 ලබාගත් දිනය <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
                             </th>
                             <th class="p-4">අවසාන දිනය</th>
+                            <th class="p-4">වැටුප / Salary</th>
                             <th class="p-4 text-center">ලින්ක් / Document View</th>
                         </tr>
                     </thead>
                     <tbody id="table-active-body" class="divide-y divide-slate-700/50">
-                        <tr><td colspan="5" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                        <tr><td colspan="6" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -145,7 +146,7 @@
                         </tr>
                     </thead>
                     <tbody id="table-novacancy-body" class="divide-y divide-slate-700/50">
-                        <tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                        <tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -176,7 +177,6 @@
 
     <!-- TAB 4: TARGET SITES MANAGER -->
     <section id="content-targets" class="tab-content hidden">
-        <!-- Add New Target Site Form -->
         <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-6 shadow-lg">
             <h3 class="text-sm font-bold text-white mb-4 flex items-center space-x-2">
                 <i class="fa-solid fa-plus-circle text-emerald-400"></i>
@@ -201,7 +201,6 @@
             </div>
         </div>
 
-        <!-- Target Sites Table -->
         <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-300">
@@ -224,14 +223,11 @@
 
 </main>
 
-<!-- Core App Logic -->
 <script>
-    // Global Variables
     let supabaseClient = null;
     let activeVacanciesData = [];
     let sortAsc = false;
 
-    // On DOM Loaded
     window.addEventListener('DOMContentLoaded', () => {
         const savedUrl = localStorage.getItem('sb_url') || '';
         const savedKey = localStorage.getItem('sb_key') || '';
@@ -268,7 +264,6 @@
     }
 
     function initSupabase(url, key) {
-        // Check if window.supabase is safely loaded
         if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
             alert('Supabase JS Library එක Load වුණේ නැත. කරුණාකර Internet connection එක හෝ AdBlocker settings පරීක්ෂා කරන්න.');
             return;
@@ -283,7 +278,6 @@
         }
     }
 
-    // Tab Switching Logic
     function switchTab(tabName) {
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
@@ -299,7 +293,6 @@
         document.getElementById(`content-${tabName}`).classList.remove('hidden');
     }
 
-    // Fetch All Data
     function loadAllData() {
         if (!supabaseClient) return;
         loadActiveVacancies();
@@ -308,7 +301,6 @@
         loadTargetSites();
     }
 
-    // 1. Active Vacancies
     async function loadActiveVacancies() {
         if (!supabaseClient) return;
         const { data, error } = await supabaseClient
@@ -329,7 +321,7 @@
     function renderActiveVacancies(data) {
         const tbody = document.getElementById('table-active-body');
         if (!data.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">ඇබෑර්තු කිසිවක් හමු නොවීය.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500">ඇබෑර්තු කිසිවක් හමු නොවීය.</td></tr>`;
             return;
         }
 
@@ -339,6 +331,7 @@
                 <td class="p-4 text-slate-300 font-medium">${escapeHtml(item.post_title)}</td>
                 <td class="p-4 text-slate-400">${item.extract_date || 'N/A'}</td>
                 <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
+                <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
                 <td class="p-4 text-center">
                     <a href="${item.file_link || item.web_link}" target="_blank" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
                         <i class="fa-solid ${item.is_file ? 'fa-file-pdf' : 'fa-arrow-up-right-from-square'}"></i>
@@ -353,7 +346,8 @@
         const query = document.getElementById('search-active').value.toLowerCase();
         const filtered = activeVacanciesData.filter(item => 
             (item.company_name && item.company_name.toLowerCase().includes(query)) || 
-            (item.post_title && item.post_title.toLowerCase().includes(query))
+            (item.post_title && item.post_title.toLowerCase().includes(query)) ||
+            (item.salary && item.salary.toLowerCase().includes(query))
         );
         renderActiveVacancies(filtered);
     }
@@ -368,7 +362,6 @@
         renderActiveVacancies(activeVacanciesData);
     }
 
-    // 2. No Vacancies
     async function loadNoVacancies() {
         if (!supabaseClient) return;
         const { data, error } = await supabaseClient
@@ -395,7 +388,6 @@
         `).join('');
     }
 
-    // 3. Scraper Errors
     async function loadScraperErrors() {
         if (!supabaseClient) return;
         const { data, error } = await supabaseClient
@@ -424,7 +416,6 @@
         `).join('');
     }
 
-    // 4. Target Sites Manager
     async function loadTargetSites() {
         if (!supabaseClient) return;
         const { data, error } = await supabaseClient
@@ -503,7 +494,6 @@
         }
     }
 
-    // Helper to prevent XSS Attacks
     function escapeHtml(str) {
         return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
