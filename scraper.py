@@ -7,6 +7,7 @@ import urllib3
 import ssl
 import requests
 import threading
+import io
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
 from datetime import datetime
@@ -14,11 +15,28 @@ from urllib.parse import urljoin, urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from rapidfuzz import fuzz
+from pypdf import PdfReader
 
-# Google Drive Libraries
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+# Google GenAI SDK Setup
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+ai_client = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        ai_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("✨ Gemini AI initialized successfully!")
+    except Exception as e:
+        print(f"⚠️ Gemini AI setup warning: {e}")
+
+# Gemini Model Fallback Chain
+DEFAULT_CHAIN = [
+    "gemini-3.8-flash",       # Tier 1: Primary Model (High Accuracy)
+    "gemini-3.6-flash",       # Tier 2: Fast & Reliable Backup
+    "gemini-3.5-flash",       # Tier 3: Workhorse Backup
+    "gemini-3.5-flash-lite",  # Tier 4: Google Recommended Lite Model
+    "gemini-3.1-flash-lite"   # Tier 5: High Rate Limit Buffer
+]
 
 # Disable SSL Warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -33,20 +51,20 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Supabase URL and Key must be provided!")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Thread Lock for Google Drive API to prevent memory corruption (Exit Code 134 fix)
 gdrive_lock = threading.Lock()
 
-# --- 1. Google Drive Connection Setup ---
+# Google Drive Service Setup
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
 def get_gdrive_service():
     if not GDRIVE_JSON or not GDRIVE_FOLDER_ID:
-        print("⚠️ Google Drive secrets not configured. Skipping Drive upload.")
         return None
     try:
         info = json.loads(GDRIVE_JSON)
         creds = Credentials.from_service_account_info(
-            info, 
-            scopes=['https://www.googleapis.com/auth/drive.file']
+            info, scopes=['https://www.googleapis.com/auth/drive.file']
         )
         return build('drive', 'v3', credentials=creds)
     except Exception as e:
@@ -56,33 +74,26 @@ def get_gdrive_service():
 def upload_file_to_drive(service, file_path, file_name, is_image=False):
     if not service:
         return None
-    with gdrive_lock:  # Safe Thread Locking for Google Drive API
+    with gdrive_lock:
         try:
-            file_metadata = {
-                'name': file_name,
-                'parents': [GDRIVE_FOLDER_ID]
-            }
+            file_metadata = {'name': file_name, 'parents': [GDRIVE_FOLDER_ID]}
             media = MediaFileUpload(file_path, resumable=True)
             uploaded = service.files().create(body=file_metadata, media_body=media, fields='id, webViewLink').execute()
             file_id = uploaded.get('id')
 
-            # Public Permission
             service.permissions().create(
-                fileId=file_id,
-                body={'type': 'anyone', 'role': 'reader'}
+                fileId=file_id, body={'type': 'anyone', 'role': 'reader'}
             ).execute()
 
-            # Direct Image Link (Option 2)
             if is_image:
                 return f"https://lh3.googleusercontent.com/d/{file_id}"
             else:
                 return uploaded.get('webViewLink', f"https://drive.google.com/file/d/{file_id}/view")
         except Exception as e:
-            print(f"❌ Drive Upload Error for {file_name}: {e}")
+            print(f"⚠️ Drive Upload Error for {file_name}: {e}")
             return None
 
-
-# --- 2. Custom Legacy SSL & Thread-Safe Session ---
+# Custom Session with Legacy SSL
 class CustomSSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
         ctx = create_urllib3_context()
@@ -101,9 +112,8 @@ def get_thread_session():
     session.mount('https://', adapter)
     session.mount('http://', adapter)
     session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,si;q=0.8'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
     })
     return session
 
@@ -133,78 +143,162 @@ def fetch_url_smart(session, original_url, max_retries=2):
             except Exception:
                 continue
         time.sleep(1)
-
     return None, original_url
 
-
-# --- 3. Keyword Lists ---
+# Keywords & Strict Filters
 JOB_KEYWORDS = [
     'vacancy', 'vacancies', 'career', 'careers', 'opening', 'openings',
     'recruit', 'recruitment', 'employment', 'job', 'jobs', 'gazette',
     'post of', 'officer', 'executive', 'assistant', 'lecturer', 'manager',
-    'ඇබෑර්තු', 'රැකියා', 'ගැසට්', 'අයදුම්පත්', 'තැන්'
+    'ඇබෑර්තු', 'රැකියා', 'ගැසට්', 'තැන්'
 ]
 
-JUNK_KEYWORDS = [
+STRICT_JUNK_KEYWORDS = [
     'tender', 'tenders', 'quotation', 'bids', 'bid', 'procurement', 'supplier',
     'exam', 'examination', 'result', 'results', 'timetable', 'seminar', 'workshop',
-    'event', 'auction', 'ප්‍රසම්පාදන', 'ලංසු', 'විභාග', 'ප්‍රතිඵල', 'ලේඛන'
+    'auction', 'application form', 'specimen application', 'seniority list',
+    'transfer', 'minutes', 'amendment', 'circular', 'syllabus', 'viva',
+    'ප්‍රසම්පාදන', 'ලංසු', 'විභාග', 'ප්‍රතිඵල', 'අයදුම්පත', 'ආකෘතිය', 'ජ්‍යෙෂ්ඨතාව'
 ]
 
 HUB_KEYWORDS = ['career', 'careers', 'vacancy', 'vacancies', 'job', 'jobs', 'notice', 'notices', 'ඇබෑර්තු']
 
+# Text Extractor for PDF
+def extract_text_from_pdf_bytes(pdf_bytes):
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        text = ""
+        for page in reader.pages[:3]:
+            text += (page.extract_text() or "") + "\n"
+        return text.strip()
+    except Exception:
+        return ""
 
-# --- 4. Expiry Date Check ---
-def extract_and_check_expiry(text_content):
-    date_patterns = [
-        r'(?:closing date|valid until|before|අවසාන දිනය|අවසන් දිනය)[\s:-]*(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})',
-        r'(?:closing date|valid until|before|අවසාන දිනය|අවසන් දිනය)[\s:-]*(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})',
-        r'(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})',
-        r'(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})'
-    ]
+# AI Content Extraction with Model Fallback Chain
+def analyze_content_with_ai(title_raw, text_content):
+    if ai_client and len(text_content) > 20:
+        prompt = f"""
+        Analyze the following Sri Lankan job posting text and return JSON only:
+        Title: {title_raw}
+        Content: {text_content[:2000]}
 
-    for pattern in date_patterns:
-        match = re.search(pattern, text_content, re.IGNORECASE)
-        if match:
-            raw_date = match.group(1).replace('.', '-').replace('/', '-')
+        Output format:
+        {{
+            "is_valid_job_vacancy": true/false,
+            "clean_post_title": "Clean concise job title",
+            "closing_date": "YYYY-MM-DD or N/A",
+            "salary": "Extracted salary/scale or N/A"
+        }}
+        Rules:
+        - is_valid_job_vacancy must be false if this is just an application form, tender, exam result, or general notice.
+        """
+
+        # Execute Chain Fallback Loop
+        for model_name in DEFAULT_CHAIN:
             try:
-                parts = raw_date.split('-')
-                if len(parts[0]) == 4:
-                    parsed_date = datetime.strptime(raw_date, '%Y-%m-%d').date()
-                else:
-                    parsed_date = datetime.strptime(raw_date, '%d-%m-%Y').date()
-                
-                is_expired = parsed_date < datetime.now().date()
-                return parsed_date.strftime('%Y-%m-%d'), is_expired
-            except Exception:
+                response = ai_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
+                raw = response.text.strip()
+                raw_clean = re.sub(r'```json\s*|\s*```', '', raw)
+                data = json.loads(raw_clean)
+                return data
+            except Exception as e:
+                print(f"⚠️ Model [{model_name}] failed/limited. Trying fallback model... Error: {e}")
                 continue
 
-    return "N/A", False
+        print("❌ All Gemini Models in chain failed. Falling back to Heuristic extraction.")
 
+    # Heuristic Fallback Strategy
+    closing_date = "N/A"
+    is_expired = False
+    date_match = re.search(r'(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})|(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})', text_content)
+    if date_match:
+        raw_d = date_match.group(0).replace('.', '-').replace('/', '-')
+        try:
+            parts = raw_d.split('-')
+            if len(parts[0]) == 4:
+                parsed_d = datetime.strptime(raw_d, '%Y-%m-%d').date()
+            else:
+                parsed_d = datetime.strptime(raw_d, '%d-%m-%Y').date()
+            closing_date = parsed_d.strftime('%Y-%m-%d')
+            is_expired = parsed_d < datetime.now().date()
+        except Exception:
+            pass
 
-# --- 5. Thread Worker Function (Per Site) ---
+    salary = "N/A"
+    sal_match = re.search(r'(?:Rs\.?|LKR)\s*[\d,]+(?:\s*-\s*[\d,]+)?|(?:Salary Scale|මාසික වේතනය)[\s:-]*[A-Z0-9/-]+', text_content, re.IGNORECASE)
+    if sal_match:
+        salary = sal_match.group(0).strip()
+
+    clean_title = re.sub(r'\b(download|click here|pdf|view|application)\b', '', title_raw, flags=re.IGNORECASE).strip()
+    if not clean_title or len(clean_title) < 3:
+        clean_title = "Vacancy Notice"
+
+    return {
+        "is_valid_job_vacancy": not is_expired,
+        "clean_post_title": clean_title,
+        "closing_date": closing_date,
+        "salary": salary
+    }
+
+# Smart Multi-Field Deduplication (Corrected Logic)
+def is_duplicate_vacancy(company_name, title, closing_date, salary, existing_records):
+    norm_title = re.sub(r'[^a-zA-Z0-9]', '', title.lower())
+
+    for rec in existing_records:
+        rec_title = re.sub(r'[^a-zA-Z0-9]', '', (rec.get('post_title') or '').lower())
+        sim_ratio = fuzz.token_sort_ratio(norm_title, rec_title)
+
+        # Job Title එක 85% කට වඩා සමාන නම් විතරක් ඊළඟ කරුණු බලනවා
+        if sim_ratio > 85:
+            rec_date = rec.get('closing_date') or 'N/A'
+            rec_sal = rec.get('salary') or 'N/A'
+
+            # 1. Closing Date දෙකම තියෙනවා නම් සහ ඒවා EXACT එකම වෙනවා නම් විතරක් Duplicate (Skip) වෙනවා.
+            # Closing Date වෙනස් නම් (අලුත් Batch එකක් නම්) Duplicate වෙන්නේ නෑ! (Save වෙනවා)
+            if closing_date != "N/A" and rec_date != "N/A":
+                if closing_date == rec_date:
+                    return True # Exact Duplicate -> Skip
+                else:
+                    continue # Closing Date වෙනස් -> Save කරන්න ඉඩ දෙනවා
+
+            # 2. Closing Date නැති විට, Salary එක සමානදැයි බලයි
+            elif salary != "N/A" and rec_sal != "N/A":
+                if salary == rec_sal:
+                    return True
+
+            # 3. Date / Salary දෙකම N/A නම්, Title එක 95% කට වඩා සමාන නම් විතරක් Skip කරයි
+            else:
+                if sim_ratio > 95:
+                    return True
+
+    return False
+
+# Single Target Worker
 def process_single_target(target, gdrive_service):
     session = get_thread_session()
     company_name = target['company_name']
     main_url = target['careers_url']
-    print(f"⚡ [Scanning Thread]: {company_name}")
+    print(f"⚡ [Scanning]: {company_name}")
 
     res, working_url = fetch_url_smart(session, main_url)
-
     if not res:
-        print(f"❌ [Failed Connection]: {company_name}")
         supabase.table('scraper_errors').insert({
             "company_name": company_name,
             "web_link": main_url,
             "error_message": "Connection failure after smart retry",
-            "retry_count": 5,
             "searched_at": datetime.now().isoformat()
         }).execute()
         return
 
     soup = BeautifulSoup(res.content, 'html.parser')
 
-    # Hub Finder
+    # Fetch existing company records for deduplication
+    existing_resp = supabase.table('vacancies').select('post_title, closing_date, salary, web_link').eq('company_name', company_name).execute()
+    existing_records = existing_resp.data or []
+
     target_pages = [working_url]
     for a in soup.find_all('a', href=True):
         link_text = a.text.strip().lower()
@@ -224,100 +318,120 @@ def process_single_target(target, gdrive_service):
         
         p_soup = BeautifulSoup(p_res.content, 'html.parser')
 
-        for a in p_soup.find_all('a', href=True):
-            href = a['href'].strip()
-            title_text = a.get_text(strip=True)
-            combined = f"{title_text} {href}".lower()
+        # Embedded Flyers (iframe, embed, object)
+        embed_links = []
+        for tag in p_soup.find_all(['iframe', 'embed', 'object']):
+            src = tag.get('src') or tag.get('data')
+            if src:
+                embed_links.append((src, "Embedded Flyer Document"))
 
-            # Junk Filter
-            if any(jk in combined for jk in JUNK_KEYWORDS):
+        a_links = [(a['href'], a.get_text(strip=True)) for a in p_soup.find_all('a', href=True)]
+        all_candidate_links = embed_links + a_links
+
+        for href, title_text in all_candidate_links:
+            href_clean = href.strip()
+            combined = f"{title_text} {href_clean}".lower()
+
+            # Strict Junk Filter
+            if any(jk in combined for jk in STRICT_JUNK_KEYWORDS):
                 continue
 
             # Vacancy Keyword Match
-            if any(jk in combined for jk in JOB_KEYWORDS):
-                full_link = urljoin(p_url, href)
+            if any(jk in combined for jk in JOB_KEYWORDS) or href_clean.lower().endswith(('.pdf', '.jpg', '.png', '.jpeg')):
+                full_link = urljoin(p_url, href_clean)
 
                 if full_link in seen_links or full_link.endswith('#') or 'javascript:' in full_link:
                     continue
                 seen_links.add(full_link)
 
-                display_title = title_text if len(title_text) > 4 else "Vacancy Notice"
-
-                closing_date, is_expired = extract_and_check_expiry(combined)
-                if is_expired:
-                    continue
-
                 is_file = full_link.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png', '.webp'))
                 is_image = full_link.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
 
+                text_content = combined
+                if full_link.lower().endswith('.pdf'):
+                    try:
+                        pdf_res = session.get(full_link, timeout=10, verify=False)
+                        if pdf_res.status_code == 200:
+                            extracted_pdf_text = extract_text_from_pdf_bytes(pdf_res.content)
+                            if len(extracted_pdf_text) > 30:
+                                text_content += " " + extracted_pdf_text
+                    except Exception:
+                        pass
+
+                # AI Extraction using Fallback Chain
+                parsed_info = analyze_content_with_ai(title_text or "Vacancy Notice", text_content)
+
+                if not parsed_info.get("is_valid_job_vacancy", True):
+                    continue
+
+                clean_title = parsed_info.get("clean_post_title", "Job Vacancy")
+                closing_date = parsed_info.get("closing_date", "N/A")
+                salary = parsed_info.get("salary", "N/A")
+
+                # Multi-field Deduplication Check
+                if is_duplicate_vacancy(company_name, clean_title, closing_date, salary, existing_records):
+                    print(f"⏩ [Duplicate Skipped]: {clean_title} ({company_name})")
+                    continue
+
                 found_items.append({
-                    "title": display_title[:200],
+                    "title": clean_title[:200],
                     "link": full_link,
                     "closing_date": closing_date,
+                    "salary": salary,
                     "is_file": is_file,
                     "is_image": is_image
                 })
 
     if found_items:
-        print(f"✅ [Success]: Found {len(found_items)} items for {company_name}")
+        print(f"✅ [Success]: {len(found_items)} verified vacancies for {company_name}")
         for item in found_items:
-            existing = supabase.table('vacancies').select('id').eq('company_name', company_name).eq('web_link', item['link']).execute()
-            
-            if not existing.data:
-                drive_link = None
+            drive_link = None
+            if item['is_file'] and gdrive_service:
+                try:
+                    f_res = session.get(item['link'], timeout=15, verify=False)
+                    if f_res.status_code == 200:
+                        ext = ".jpg" if item['is_image'] else ".pdf"
+                        temp_name = f"{company_name}_{int(time.time())}{ext}".replace(" ", "_")
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
+                            temp_file.write(f_res.content)
+                            temp_path = temp_file.name
 
-                # Google Drive Upload (Protected with Lock)
-                if item['is_file'] and gdrive_service:
-                    try:
-                        f_res = session.get(item['link'], timeout=20, verify=False)
-                        if f_res.status_code == 200:
-                            ext = ".jpg" if item['is_image'] else ".pdf"
-                            temp_name = f"{company_name}_{int(time.time())}{ext}".replace(" ", "_")
-                            
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as temp_file:
-                                temp_file.write(f_res.content)
-                                temp_path = temp_file.name
+                        drive_link = upload_file_to_drive(gdrive_service, temp_path, temp_name, is_image=item['is_image'])
+                        os.remove(temp_path)
+                except Exception:
+                    pass
 
-                            drive_link = upload_file_to_drive(gdrive_service, temp_path, temp_name, is_image=item['is_image'])
-                            os.remove(temp_path)
-                    except Exception as e:
-                        print(f"⚠️ Could not upload to Drive ({company_name}): {e}")
+            final_link = drive_link or item['link']
 
-                final_file_link = drive_link or item['link']
-
-                supabase.table('vacancies').insert({
-                    "company_name": company_name,
-                    "post_title": item['title'],
-                    "extract_date": datetime.now().strftime('%Y-%m-%d'),
-                    "closing_date": item['closing_date'],
-                    "web_link": item['link'],
-                    "file_link": final_file_link,
-                    "is_file": item['is_file'],
-                    "searched_at": datetime.now().isoformat()
-                }).execute()
+            supabase.table('vacancies').insert({
+                "company_name": company_name,
+                "post_title": item['title'],
+                "extract_date": datetime.now().strftime('%Y-%m-%d'),
+                "closing_date": item['closing_date'],
+                "salary": item['salary'],
+                "web_link": item['link'],
+                "file_link": final_link,
+                "is_file": item['is_file'],
+                "searched_at": datetime.now().isoformat()
+            }).execute()
 
         supabase.table('scraper_errors').delete().eq('company_name', company_name).execute()
-
     else:
-        print(f"ℹ️ [No Vacancies]: No active vacancies found for {company_name}")
+        print(f"ℹ️ [No Vacancies]: {company_name}")
         supabase.table('no_vacancies').insert({
             "company_name": company_name,
             "web_link": working_url,
             "searched_at": datetime.now().isoformat()
         }).execute()
 
-
-# --- 6. Main Parallel Controller ---
 def process_scraping():
     gdrive_service = get_gdrive_service()
-
     response = supabase.table('target_organizations').select('*').eq('is_active', True).execute()
     targets = response.data
 
-    print(f"🚀 === Starting Multi-threaded Fast Scraper for {len(targets)} active targets ===")
+    print(f"🚀 === Scraper Started for {len(targets)} Targets ===")
     start_time = time.time()
 
-    # Parallel Execution (Workers = 5 to be safe with memory)
     max_workers = min(5, len(targets)) if targets else 1
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(process_single_target, target, gdrive_service) for target in targets]
@@ -327,8 +441,7 @@ def process_scraping():
             except Exception as e:
                 print(f"❌ Thread Error: {e}")
 
-    elapsed_time = round(time.time() - start_time, 2)
-    print(f"\n🎉 === Finished Scrape in {elapsed_time} seconds! ===")
+    print(f"🎉 === Finished in {round(time.time() - start_time, 2)} seconds ===")
 
 if __name__ == "__main__":
     process_scraping()
