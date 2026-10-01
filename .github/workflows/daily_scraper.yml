@@ -2,8 +2,8 @@ name: Sri Lanka Job & Gazette Scraper
 
 on:
   schedule:
-    - cron: '30 20 * * *' # පාන්දර 2:00 AM (SL Time)
-    - cron: '30 23 * * *' # පාන්දර 5:00 AM (SL Time)
+    - cron: '30 3 * * *'  # ලංකාවේ උදේ 9:00 AM (SL Time)
+    - cron: '30 7 * * *'  # ලංකාවේ දවාල 1:00 PM (SL Time)
   workflow_dispatch:
 
 jobs:
@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install Dependencies
         run: |
@@ -28,4 +28,5 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scraper.py
