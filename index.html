@@ -21,56 +21,110 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
+<!-- EMAIL & PASSWORD LOGIN OVERLAY -->
+<div id="loginOverlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl">
+        <div class="text-center mb-6">
+            <div class="inline-flex bg-blue-600 p-3 rounded-2xl text-white mb-3 shadow-lg shadow-blue-600/30">
+                <i class="fa-solid fa-user-shield text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white">StepLK Admin Login</h2>
+            <p class="text-xs text-slate-400 mt-1">Dashboard එකට ඇතුළු වීමට ඔබේ Email සහ Password ඇතුළත් කරන්න.</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+                <div class="relative">
+                    <i class="fa-solid fa-envelope absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                    <input type="email" id="loginEmail" required placeholder="admin@steplk.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition">
+                </div>
+            </div>
+
+            <button type="submit" id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl text-xs transition shadow-lg shadow-blue-600/30 flex justify-center items-center space-x-2 mt-2">
+                <span>ඇතුළු වන්න (Sign In)</span>
+                <i class="fa-solid fa-arrow-right text-xs"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
 <!-- Header -->
-<header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-md">
+<header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40 shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center space-x-3">
             <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-600/30">
                 <i class="fa-solid fa-briefcase text-xl"></i>
             </div>
             <div>
-                <h1 class="text-lg font-bold text-white leading-tight">Job & Gazette Scraper</h1>
-                <p class="text-xs text-slate-400">StepLK Realtime Monitoring & Control Dashboard</p>
+                <h1 class="text-base sm:text-lg font-bold text-white leading-tight">Job & Gazette Scraper</h1>
+                <p class="text-[10px] sm:text-xs text-slate-400">StepLK Realtime Monitoring & Control Dashboard</p>
             </div>
         </div>
+
+        <button id="logoutBtn" onclick="handleLogout()" class="hidden bg-slate-700/80 hover:bg-rose-600/20 hover:text-rose-400 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-600 transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span class="hidden sm:inline">Logout</span>
+        </button>
     </div>
 </header>
 
 <!-- Main Container -->
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+<main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 flex-1 w-full">
 
-    <!-- Navigation Tabs (Clipped Tab Fix) -->
-    <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-3 mb-6 border-b border-slate-800">
-        <button onclick="switchTab('active')" id="tab-active" class="tab-btn shrink-0 active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
+    <!-- Manual Connection Fallback Alert (If URL/Key missing) -->
+    <div id="connStatusAlert" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl text-xs flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm shrink-0"></i>
+            <span>Supabase Credentials තවමත් සකසා නැත. Local testing සඳහා URL සහ Key ඇතුළත් කරන්න.</span>
+        </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto">
+            <input type="text" id="manualUrl" placeholder="Supabase URL" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white w-1/2 sm:w-36">
+            <input type="password" id="manualKey" placeholder="Anon Key" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white w-1/2 sm:w-36">
+            <button onclick="saveManualCredentials()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-semibold shrink-0">Connect</button>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs (NO CLIPPING FIX) -->
+    <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-3 mb-6 border-b border-slate-800 w-full">
+        <button onclick="switchTab('active')" id="tab-active" class="tab-btn shrink-0 whitespace-nowrap active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
             <i class="fa-solid fa-list-check text-emerald-400"></i>
             <span>Active Vacancies (නොසැලකූ)</span>
             <span id="count-active" class="bg-blue-950/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('processed')" id="tab-processed" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('processed')" id="tab-processed" class="tab-btn shrink-0 whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-check-double text-blue-400"></i>
             <span>Processed Vacancies (සැලකූ)</span>
             <span id="count-processed" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn shrink-0 whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-folder-minus text-amber-400"></i>
             <span>No Vacancies (ඇබෑර්තු නැති)</span>
             <span id="count-novacancies" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn shrink-0 whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
             <span>Scraper Errors (දෝෂ)</span>
             <span id="count-errors" class="bg-rose-950/80 text-rose-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn shrink-0 whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-terminal text-cyan-400"></i>
             <span>System Logs (ලොග් සටහන්)</span>
         </button>
 
-        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn shrink-0 whitespace-nowrap px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-globe text-emerald-400"></i>
             <span>Target Sites Manager</span>
         </button>
@@ -96,17 +150,17 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 w-12 text-center">#</th>
-                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name', 'active')">
+                            <th class="p-3 sm:p-4 w-10 text-center">#</th>
+                            <th class="p-3 sm:p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name', 'active')">
                                 ආයතනය <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
                             </th>
-                            <th class="p-4">තැන්න / Vacancy Post Title</th>
-                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('searched_at', 'active')">
+                            <th class="p-3 sm:p-4">තැන්න / Vacancy Post Title</th>
+                            <th class="p-3 sm:p-4 cursor-pointer hover:text-white whitespace-nowrap" onclick="sortVacancies('searched_at', 'active')">
                                 ලබාගත් දිනය සහ වේලාව <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
                             </th>
-                            <th class="p-4">අවසාන දිනය</th>
-                            <th class="p-4">වැටුප / Salary</th>
-                            <th class="p-4 text-center whitespace-nowrap min-w-[140px]">ලින්ක් / Document View</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">අවසාන දිනය</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">වැටුප / Salary</th>
+                            <th class="p-3 sm:p-4 text-center whitespace-nowrap min-w-[130px]">ලින්ක් / Document View</th>
                         </tr>
                     </thead>
                     <tbody id="table-active-body" class="divide-y divide-slate-700/50">
@@ -135,13 +189,13 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 w-12 text-center">#</th>
-                            <th class="p-4">ආයතනය</th>
-                            <th class="p-4">තැන්න / Vacancy Post Title</th>
-                            <th class="p-4">ලබාගත් දිනය සහ වේලාව</th>
-                            <th class="p-4">අවසාන දිනය</th>
-                            <th class="p-4">වැටුප / Salary</th>
-                            <th class="p-4 text-center whitespace-nowrap min-w-[120px]">Status</th>
+                            <th class="p-3 sm:p-4 w-10 text-center">#</th>
+                            <th class="p-3 sm:p-4">ආයතනය</th>
+                            <th class="p-3 sm:p-4">තැන්න / Vacancy Post Title</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">ලබාගත් දිනය සහ වේලාව</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">අවසාන දිනය</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">වැටුප / Salary</th>
+                            <th class="p-3 sm:p-4 text-center whitespace-nowrap min-w-[120px]">Status</th>
                         </tr>
                     </thead>
                     <tbody id="table-processed-body" class="divide-y divide-slate-700/50">
@@ -159,10 +213,10 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 w-12 text-center">#</th>
-                            <th class="p-4">ආයතනය</th>
-                            <th class="p-4">පරීක්ෂා කළ වෙබ් ලිපිනය (Careers URL)</th>
-                            <th class="p-4">පරීක්ෂා කළ දිනය සහ වේලාව</th>
+                            <th class="p-3 sm:p-4 w-10 text-center">#</th>
+                            <th class="p-3 sm:p-4">ආයතනය</th>
+                            <th class="p-3 sm:p-4">පරීක්ෂා කළ වෙබ් ලිපිනය (Careers URL)</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">පරීක්ෂා කළ දිනය සහ වේලාව</th>
                         </tr>
                     </thead>
                     <tbody id="table-novacancy-body" class="divide-y divide-slate-700/50">
@@ -180,12 +234,12 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 w-12 text-center">#</th>
-                            <th class="p-4">ආයතනය</th>
-                            <th class="p-4">වෙබ් ලිපිනය</th>
-                            <th class="p-4">දෝෂයේ ස්වභාවය (Error Reason)</th>
-                            <th class="p-4 text-center">උත්සාහ කළ වාර ගණන</th>
-                            <th class="p-4">දිනය සහ වේලාව</th>
+                            <th class="p-3 sm:p-4 w-10 text-center">#</th>
+                            <th class="p-3 sm:p-4">ආයතනය</th>
+                            <th class="p-3 sm:p-4">වෙබ් ලිපිනය</th>
+                            <th class="p-3 sm:p-4">දෝෂයේ ස්වභාවය (Error Reason)</th>
+                            <th class="p-3 sm:p-4 text-center">උත්සාහ කළ වාර ගණන</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">දිනය සහ වේලාව</th>
                         </tr>
                     </thead>
                     <tbody id="table-errors-body" class="divide-y divide-slate-700/50">
@@ -213,12 +267,12 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 w-12 text-center">#</th>
-                            <th class="p-4">ගොනුවේ නම / Source</th>
-                            <th class="p-4 text-center">තත්ත්වය (Status)</th>
-                            <th class="p-4 text-center">ගණන</th>
-                            <th class="p-4">ලොග් විස්තරය / Extraction Summary</th>
-                            <th class="p-4">දිනය සහ වේලාව</th>
+                            <th class="p-3 sm:p-4 w-10 text-center">#</th>
+                            <th class="p-3 sm:p-4">ගොනුවේ නම / Source</th>
+                            <th class="p-3 sm:p-4 text-center">තත්ත්වය (Status)</th>
+                            <th class="p-3 sm:p-4 text-center">ගණන</th>
+                            <th class="p-3 sm:p-4">ලොග් විස්තරය / Extraction Summary</th>
+                            <th class="p-3 sm:p-4 whitespace-nowrap">දිනය සහ වේලාව</th>
                         </tr>
                     </thead>
                     <tbody id="table-logs-body" class="divide-y divide-slate-700/50 font-mono text-[11px]">
@@ -231,14 +285,14 @@
 
     <!-- TAB 6: TARGET SITES MANAGER -->
     <section id="content-targets" class="tab-content hidden">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-6 shadow-lg">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 sm:p-5 mb-6 shadow-lg">
             <h3 class="text-sm font-bold text-white mb-4 flex items-center space-x-2">
                 <i class="fa-solid fa-plus-circle text-emerald-400"></i>
                 <span>අලුත් ආයතනයක් / වෙබ් අඩවියක් එකතු කරන්න</span>
             </h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input type="text" id="new-comp-name" placeholder="ආයතනයේ නම (උදා: Commercial Bank)" class="bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
-                <input type="url" id="new-comp-url" placeholder="Careers / Vacancy URL (https://...)" class="bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="text" id="new-comp-name" placeholder="ආයතනයේ නම" class="bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+                <input type="url" id="new-comp-url" placeholder="Careers URL (https://...)" class="bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
                 <div class="flex space-x-2">
                     <select id="new-comp-cat" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 flex-1">
                         <option value="University">University</option>
@@ -260,12 +314,12 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 w-12 text-center">#</th>
-                            <th class="p-4">ආයතනය</th>
-                            <th class="p-4">Category</th>
-                            <th class="p-4">Careers URL</th>
-                            <th class="p-4 text-center">Status</th>
-                            <th class="p-4 text-center">ක්‍රියාකාරකම්</th>
+                            <th class="p-3 sm:p-4 w-10 text-center">#</th>
+                            <th class="p-3 sm:p-4">ආයතනය</th>
+                            <th class="p-3 sm:p-4">Category</th>
+                            <th class="p-3 sm:p-4">Careers URL</th>
+                            <th class="p-3 sm:p-4 text-center">Status</th>
+                            <th class="p-3 sm:p-4 text-center">ක්‍රියාකාරකම්</th>
                         </tr>
                     </thead>
                     <tbody id="table-targets-body" class="divide-y divide-slate-700/50">
@@ -292,7 +346,7 @@
 </footer>
 
 <script>
-    // GitHub Actions Secret Placeholders
+    // GitHub Actions secret injection placeholders
     const SUPABASE_URL = "__SUPABASE_URL__";
     const SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
 
@@ -302,29 +356,74 @@
     let sortAsc = false;
 
     window.addEventListener('DOMContentLoaded', () => {
-        if (SUPABASE_URL && SUPABASE_URL !== "__SUPABASE_URL__" && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "__SUPABASE_ANON_KEY__") {
-            initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } else {
-            const savedUrl = localStorage.getItem('sb_url') || '';
-            const savedKey = localStorage.getItem('sb_key') || '';
-            if (savedUrl && savedKey) {
-                initSupabase(savedUrl, savedKey);
-            }
-        }
+        initSupabase();
     });
 
-    function initSupabase(url, key) {
-        if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-            console.error('Supabase SDK missing');
+    function initSupabase() {
+        let url = (SUPABASE_URL && SUPABASE_URL !== "__SUPABASE_URL__") ? SUPABASE_URL : localStorage.getItem('sb_url');
+        let key = (SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "__SUPABASE_ANON_KEY__") ? SUPABASE_ANON_KEY : localStorage.getItem('sb_key');
+
+        if (!url || !key) {
+            document.getElementById('connStatusAlert').classList.remove('hidden');
             return;
         }
+
+        document.getElementById('connStatusAlert').classList.add('hidden');
 
         try {
             const { createClient } = window.supabase;
             supabaseClient = createClient(url, key);
-            loadAllData();
+            checkAuthAndLoad();
         } catch (err) {
-            console.error('Supabase error:', err);
+            console.error('Supabase Init Error:', err);
+        }
+    }
+
+    function saveManualCredentials() {
+        const url = document.getElementById('manualUrl').value.trim();
+        const key = document.getElementById('manualKey').value.trim();
+        if (!url || !key) return alert('URL සහ Key ඇතුළත් කරන්න.');
+        localStorage.setItem('sb_url', url);
+        localStorage.setItem('sb_key', key);
+        initSupabase();
+    }
+
+    async function checkAuthAndLoad() {
+        if (!supabaseClient) return;
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            document.getElementById('loginOverlay').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            loadAllData();
+        } else {
+            document.getElementById('loginOverlay').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+        }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        const loginBtn = document.getElementById('loginBtn');
+
+        loginBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Processing...`;
+
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            alert('Login Error: ' + error.message);
+            loginBtn.innerHTML = `<span>ඇතුළු වන්න (Sign In)</span> <i class="fa-solid fa-arrow-right text-xs"></i>`;
+        } else {
+            checkAuthAndLoad();
+        }
+    }
+
+    async function handleLogout() {
+        if (supabaseClient) {
+            await supabaseClient.auth.signOut();
+            checkAuthAndLoad();
         }
     }
 
@@ -407,13 +506,13 @@
 
             return `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
-                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
-                <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
-                <td class="p-4 text-slate-300 font-medium">${escapeHtml(item.post_title || 'Vacancy Notice')}</td>
-                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
-                <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
-                <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
-                <td class="p-4 text-center whitespace-nowrap min-w-[140px]">${linkHtml}</td>
+                <td class="p-3 sm:p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 sm:p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
+                <td class="p-3 sm:p-4 text-slate-300 font-medium">${escapeHtml(item.post_title || 'Vacancy Notice')}</td>
+                <td class="p-3 sm:p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
+                <td class="p-3 sm:p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
+                <td class="p-3 sm:p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
+                <td class="p-3 sm:p-4 text-center whitespace-nowrap min-w-[130px]">${linkHtml}</td>
             </tr>
             `;
         }).join('');
@@ -443,13 +542,13 @@
 
         tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40 opacity-75">
-                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
-                <td class="p-4 font-semibold text-slate-300">${escapeHtml(item.company_name)}</td>
-                <td class="p-4 text-slate-300">${escapeHtml(item.post_title || 'Vacancy Notice')}</td>
-                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
-                <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
-                <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
-                <td class="p-4 text-center whitespace-nowrap min-w-[120px]">
+                <td class="p-3 sm:p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 sm:p-4 font-semibold text-slate-300">${escapeHtml(item.company_name)}</td>
+                <td class="p-3 sm:p-4 text-slate-300">${escapeHtml(item.post_title || 'Vacancy Notice')}</td>
+                <td class="p-3 sm:p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
+                <td class="p-3 sm:p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
+                <td class="p-3 sm:p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
+                <td class="p-3 sm:p-4 text-center whitespace-nowrap min-w-[120px]">
                     <span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] px-2.5 py-1 rounded-full font-bold inline-flex items-center">
                         <i class="fa-solid fa-check mr-1"></i> Synced
                     </span>
@@ -509,10 +608,10 @@
 
         tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
-                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
-                <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
-                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-blue-400 hover:underline inline-flex items-center space-x-1"><span>${escapeHtml(item.web_link)}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></td>
-                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at)}</td>
+                <td class="p-3 sm:p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 sm:p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
+                <td class="p-3 sm:p-4"><a href="${item.web_link}" target="_blank" class="text-blue-400 hover:underline inline-flex items-center space-x-1"><span>${escapeHtml(item.web_link)}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></td>
+                <td class="p-3 sm:p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at)}</td>
             </tr>
         `).join('');
     }
@@ -536,12 +635,12 @@
 
         tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
-                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
-                <td class="p-4 font-semibold text-rose-300">${escapeHtml(item.company_name)}</td>
-                <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-slate-400 hover:underline">${escapeHtml(item.web_link)}</a></td>
-                <td class="p-4 text-rose-400 text-xs font-mono bg-rose-950/20 rounded p-2 border border-rose-900/30">${escapeHtml(item.error_message || 'Timeout / Connection Failure')}</td>
-                <td class="p-4 text-center font-bold text-amber-400">${item.retry_count || 1}</td>
-                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at)}</td>
+                <td class="p-3 sm:p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 sm:p-4 font-semibold text-rose-300">${escapeHtml(item.company_name)}</td>
+                <td class="p-3 sm:p-4"><a href="${item.web_link}" target="_blank" class="text-slate-400 hover:underline">${escapeHtml(item.web_link)}</a></td>
+                <td class="p-3 sm:p-4 text-rose-400 text-xs font-mono bg-rose-950/20 rounded p-2 border border-rose-900/30">${escapeHtml(item.error_message || 'Timeout / Connection Failure')}</td>
+                <td class="p-3 sm:p-4 text-center font-bold text-amber-400">${item.retry_count || 1}</td>
+                <td class="p-3 sm:p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at)}</td>
             </tr>
         `).join('');
     }
@@ -562,16 +661,16 @@
 
         tbody.innerHTML = data.map((log, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
-                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
-                <td class="p-4 text-slate-200 font-semibold">${escapeHtml(log.file_name)}</td>
-                <td class="p-4 text-center">
+                <td class="p-3 sm:p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 sm:p-4 text-slate-200 font-semibold">${escapeHtml(log.file_name)}</td>
+                <td class="p-3 sm:p-4 text-center">
                     <span class="px-2 py-0.5 rounded text-[10px] font-bold ${log.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
                         ${log.status}
                     </span>
                 </td>
-                <td class="p-4 text-center text-amber-400 font-bold">${log.extracted_count || 0}</td>
-                <td class="p-4 text-slate-300 max-w-xs truncate">${escapeHtml(log.extracted_titles || log.error_message || 'N/A')}</td>
-                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(log.created_at)}</td>
+                <td class="p-3 sm:p-4 text-center text-amber-400 font-bold">${log.extracted_count || 0}</td>
+                <td class="p-3 sm:p-4 text-slate-300 max-w-xs truncate">${escapeHtml(log.extracted_titles || log.error_message || 'N/A')}</td>
+                <td class="p-3 sm:p-4 text-slate-400 whitespace-nowrap">${formatDateTime(log.created_at)}</td>
             </tr>
         `).join('');
     }
@@ -593,16 +692,16 @@
 
         tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
-                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
-                <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
-                <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold">${escapeHtml(item.category || 'General')}</span></td>
-                <td class="p-4"><a href="${item.careers_url}" target="_blank" class="text-blue-400 hover:underline">${escapeHtml(item.careers_url)}</a></td>
-                <td class="p-4 text-center">
+                <td class="p-3 sm:p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-3 sm:p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
+                <td class="p-3 sm:p-4"><span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold">${escapeHtml(item.category || 'General')}</span></td>
+                <td class="p-3 sm:p-4"><a href="${item.careers_url}" target="_blank" class="text-blue-400 hover:underline">${escapeHtml(item.careers_url)}</a></td>
+                <td class="p-3 sm:p-4 text-center">
                     <button onclick="toggleSiteActive(${item.id}, ${item.is_active})" class="px-3 py-1 rounded-full text-[10px] font-bold transition ${item.is_active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'}">
                         ${item.is_active ? '● Active' : '○ Inactive'}
                     </button>
                 </td>
-                <td class="p-4 text-center">
+                <td class="p-3 sm:p-4 text-center">
                     <button onclick="deleteTargetSite(${item.id})" class="text-slate-500 hover:text-rose-400 p-1.5 transition">
                         <i class="fa-solid fa-trash"></i>
                     </button>
