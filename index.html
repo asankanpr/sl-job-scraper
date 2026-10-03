@@ -2,7 +2,7 @@
 <html lang="si" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>StepLK - Job & Gazette Scraper Admin Dashboard</title>
 
     <!-- Tailwind CSS CDN -->
@@ -13,6 +13,11 @@
 
     <!-- Supabase JS SDK v2 CDN -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
@@ -79,37 +84,37 @@
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-4 mb-6">
-        <button onclick="switchTab('active')" id="tab-active" class="tab-btn active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
+    <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-4 mb-6 border-b border-slate-800">
+        <button onclick="switchTab('active')" id="tab-active" class="tab-btn active shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
             <i class="fa-solid fa-list-check text-emerald-400"></i>
             <span>Active Vacancies (නොසැලකූ)</span>
             <span id="count-active" class="bg-blue-950/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('processed')" id="tab-processed" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('processed')" id="tab-processed" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-check-double text-blue-400"></i>
             <span>Processed Vacancies (සැලකූ)</span>
             <span id="count-processed" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-folder-minus text-amber-400"></i>
             <span>No Vacancies (ඇබෑර්තු නැති)</span>
             <span id="count-novacancies" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
             <span>Scraper Errors (දෝෂ)</span>
             <span id="count-errors" class="bg-rose-950/80 text-rose-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
 
-        <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+        <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-terminal text-cyan-400"></i>
             <span>System Logs (ලොග් සටහන්)</span>
         </button>
 
-        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 ml-auto">
+        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 ml-auto">
             <i class="fa-solid fa-globe text-emerald-400"></i>
             <span>Target Sites Manager</span>
         </button>
@@ -331,22 +336,32 @@
 </footer>
 
 <script>
+    // GitHub Actions secret injection placeholders
+    const SUPABASE_URL = "__SUPABASE_URL__";
+    const SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
+
     let supabaseClient = null;
     let activeVacanciesData = [];
     let processedVacanciesData = [];
     let sortAsc = false;
 
     window.addEventListener('DOMContentLoaded', () => {
-        const savedUrl = localStorage.getItem('sb_url') || '';
-        const savedKey = localStorage.getItem('sb_key') || '';
-
-        if (savedUrl && savedKey) {
-            document.getElementById('sbUrlInput').value = savedUrl;
-            document.getElementById('sbKeyInput').value = savedKey;
-            initSupabase(savedUrl, savedKey);
+        // GitHub Actions secrets inject hoyeche kina ta check kora
+        if (SUPABASE_URL && SUPABASE_URL !== "__SUPABASE_URL__" && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "__SUPABASE_ANON_KEY__") {
+            initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
         } else {
-            document.getElementById('connStatusAlert').classList.remove('hidden');
-            toggleConfigModal();
+            // Local fallback (localStorage check)
+            const savedUrl = localStorage.getItem('sb_url') || '';
+            const savedKey = localStorage.getItem('sb_key') || '';
+
+            if (savedUrl && savedKey) {
+                document.getElementById('sbUrlInput').value = savedUrl;
+                document.getElementById('sbKeyInput').value = savedKey;
+                initSupabase(savedUrl, savedKey);
+            } else {
+                document.getElementById('connStatusAlert').classList.remove('hidden');
+                toggleConfigModal();
+            }
         }
     });
 
