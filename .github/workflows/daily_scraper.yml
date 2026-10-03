@@ -2,8 +2,10 @@ name: Sri Lanka Job & Gazette Scraper
 
 on:
   schedule:
-    # SLT: 06:30 AM & 12:30 PM (UTC: 01:00 AM & 07:00 AM)
-    - cron: '0 1,7 * * *'
+    # SLT: 07:30 AM & 11:30 AM (UTC: 02:00 AM & 06:00 AM)
+    - cron: '0 2 * * *'    # 07:30 AM (උදෑසන 07:30)
+    - cron: '0 6 * * *'    # 11:30 AM (උදෑසන 11:30)
+    
   workflow_dispatch:
 
 jobs:
