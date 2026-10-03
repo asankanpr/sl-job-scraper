@@ -1,12 +1,20 @@
-<!-- Tailwind CSS CDN -->
-<script src="https://cdn.tailwindcss.com"></script>
+<!DOCTYPE html>
+<html lang="si" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StepLK - Job & Gazette Scraper Admin Dashboard</title>
 
-<!-- Font Awesome Icons CDN -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- Supabase JS SDK v2 CDN (unpkg for high availability) -->
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- Font Awesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Supabase JS SDK v2 CDN -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
 <!-- Header -->
 <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-md">
@@ -17,7 +25,7 @@
             </div>
             <div>
                 <h1 class="text-lg font-bold text-white leading-tight">Job & Gazette Scraper</h1>
-                <p class="text-xs text-slate-400">Admin Control & Realtime Monitoring Dashboard</p>
+                <p class="text-xs text-slate-400">StepLK Realtime Monitoring & Control Dashboard</p>
             </div>
         </div>
 
@@ -37,7 +45,7 @@
             <span>Supabase Credentials Setup</span>
         </h3>
         <p class="text-xs text-slate-400 mb-5 leading-relaxed">
-            Dashboard එක Supabase එකට Connect කිරීමට පහත විස්තර ඇතුළත් කරන්න. (මෙහි ඇතුළත් කරන දත්ත ඔබේ Browser එකේ සුරක්ෂිතව Save වේ)
+            Dashboard එක Supabase එකට Connect කිරීමට පහත විස්තර ඇතුළත් කරන්න.
         </p>
         
         <div class="space-y-4">
@@ -59,9 +67,9 @@
 </div>
 
 <!-- Main Container -->
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
 
-    <!-- Connection Alert Banner (if disconnected) -->
+    <!-- Connection Alert Banner -->
     <div id="connStatusAlert" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl text-xs flex items-center justify-between mb-6">
         <div class="flex items-center space-x-2">
             <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
@@ -73,27 +81,41 @@
     <!-- Navigation Tabs -->
     <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-4 mb-6">
         <button onclick="switchTab('active')" id="tab-active" class="tab-btn active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
-            <i class="fa-solid fa-list-check"></i>
-            <span>Active Vacancies (ලැබුණු ඇබෑර්තු)</span>
-            <span id="count-vacancies" class="bg-blue-950/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
+            <i class="fa-solid fa-list-check text-emerald-400"></i>
+            <span>Active Vacancies (නොසැලකූ)</span>
+            <span id="count-active" class="bg-blue-950/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
+
+        <button onclick="switchTab('processed')" id="tab-processed" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+            <i class="fa-solid fa-check-double text-blue-400"></i>
+            <span>Processed Vacancies (සැලකූ)</span>
+            <span id="count-processed" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
+        </button>
+
         <button onclick="switchTab('novacancy')" id="tab-novacancy" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
-            <i class="fa-solid fa-folder-minus"></i>
+            <i class="fa-solid fa-folder-minus text-amber-400"></i>
             <span>No Vacancies (ඇබෑර්තු නැති)</span>
             <span id="count-novacancies" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
+
         <button onclick="switchTab('errors')" id="tab-errors" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
             <span>Scraper Errors (දෝෂ)</span>
             <span id="count-errors" class="bg-rose-950/80 text-rose-300 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
+
+        <button onclick="switchTab('logs')" id="tab-logs" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
+            <i class="fa-solid fa-terminal text-cyan-400"></i>
+            <span>System Logs (ලොග් සටහන්)</span>
+        </button>
+
         <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 ml-auto">
             <i class="fa-solid fa-globe text-emerald-400"></i>
             <span>Target Sites Manager</span>
         </button>
     </div>
 
-    <!-- TAB 1: ACTIVE VACANCIES -->
+    <!-- TAB 1: ACTIVE VACANCIES (UNPROCESSED) -->
     <section id="content-active" class="tab-content">
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
             <div class="relative w-full sm:w-80">
@@ -113,12 +135,13 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name')">
+                            <th class="p-4 w-12 text-center">#</th>
+                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('company_name', 'active')">
                                 ආයතනය <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
                             </th>
                             <th class="p-4">තැන්න / Vacancy Post Title</th>
-                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('extract_date')">
-                                ලබාගත් දිනය <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
+                            <th class="p-4 cursor-pointer hover:text-white" onclick="sortVacancies('searched_at', 'active')">
+                                ලබාගත් දිනය සහ වේලාව <i class="fa-solid fa-sort text-slate-600 ml-1"></i>
                             </th>
                             <th class="p-4">අවසාන දිනය</th>
                             <th class="p-4">වැටුප / Salary</th>
@@ -126,6 +149,85 @@
                         </tr>
                     </thead>
                     <tbody id="table-active-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="7" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 2: PROCESSED VACANCIES -->
+    <section id="content-processed" class="tab-content hidden">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+            <div class="relative w-full sm:w-80">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
+                <input type="text" id="search-processed" oninput="filterProcessedVacancies()" placeholder="සැලකූ ඇබෑර්තු සොයන්න..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
+            </div>
+            <button onclick="loadProcessedVacancies()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3.5 py-2 rounded-lg text-slate-300 flex items-center space-x-2 transition">
+                <i class="fa-solid fa-rotate text-blue-400"></i>
+                <span>Refresh Data</span>
+            </button>
+        </div>
+
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4 w-12 text-center">#</th>
+                            <th class="p-4">ආයතනය</th>
+                            <th class="p-4">තැන්න / Vacancy Post Title</th>
+                            <th class="p-4">ලබාගත් දිනය සහ වේලාව</th>
+                            <th class="p-4">අවසාන දිනය</th>
+                            <th class="p-4">වැටුප / Salary</th>
+                            <th class="p-4 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-processed-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="7" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 3: NO VACANCIES -->
+    <section id="content-novacancy" class="tab-content hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4 w-12 text-center">#</th>
+                            <th class="p-4">ආයතනය</th>
+                            <th class="p-4">පරීක්ෂා කළ වෙබ් ලිපිනය (Careers URL)</th>
+                            <th class="p-4">පරීක්ෂා කළ දිනය සහ වේලාව</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-novacancy-body" class="divide-y divide-slate-700/50">
+                        <tr><td colspan="4" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 4: SCRAPER ERRORS -->
+    <section id="content-errors" class="tab-content hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                        <tr>
+                            <th class="p-4 w-12 text-center">#</th>
+                            <th class="p-4">ආයතනය</th>
+                            <th class="p-4">වෙබ් ලිපිනය</th>
+                            <th class="p-4">දෝෂයේ ස්වභාවය (Error Reason)</th>
+                            <th class="p-4 text-center">උත්සාහ කළ වාර ගණන</th>
+                            <th class="p-4">දිනය සහ වේලාව</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-errors-body" class="divide-y divide-slate-700/50">
                         <tr><td colspan="6" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
                     </tbody>
                 </table>
@@ -133,49 +235,40 @@
         </div>
     </section>
 
-    <!-- TAB 2: NO VACANCIES -->
-    <section id="content-novacancy" class="tab-content hidden">
+    <!-- TAB 5: SYSTEM LOGS -->
+    <section id="content-logs" class="tab-content hidden">
         <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
+            <div class="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
+                <h3 class="text-xs font-bold text-slate-300 flex items-center space-x-2">
+                    <i class="fa-solid fa-list-ol text-cyan-400"></i>
+                    <span>Realtime Extraction Audit & Processing Logs</span>
+                </h3>
+                <button onclick="loadSystemLogs()" class="text-xs text-slate-400 hover:text-white flex items-center space-x-1">
+                    <i class="fa-solid fa-rotate text-blue-400"></i>
+                    <span>Refresh Logs</span>
+                </button>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs text-slate-300">
-                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
+                    <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
-                            <th class="p-4">ආයතනය</th>
-                            <th class="p-4">පරීක්ෂා කළ වෙබ් ලිපිනය (Careers URL)</th>
-                            <th class="p-4">පරීක්ෂා කළ දිනය සහ වේලාව</th>
+                            <th class="p-4 w-12 text-center">#</th>
+                            <th class="p-4">ගොනුවේ නම / Source</th>
+                            <th class="p-4 text-center">තත්ත්වය (Status)</th>
+                            <th class="p-4 text-center">ගණන</th>
+                            <th class="p-4">ලොග් විස්තරය / Extraction Summary</th>
+                            <th class="p-4">දිනය සහ වේලාව</th>
                         </tr>
                     </thead>
-                    <tbody id="table-novacancy-body" class="divide-y divide-slate-700/50">
-                        <tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>
+                    <tbody id="table-logs-body" class="divide-y divide-slate-700/50 font-mono text-[11px]">
+                        <tr><td colspan="6" class="p-6 text-center text-slate-500">Logs ලෝඩ් වෙමින් පවතී...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </section>
 
-    <!-- TAB 3: SCRAPER ERRORS -->
-    <section id="content-errors" class="tab-content hidden">
-        <div class="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs text-slate-300">
-                    <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
-                        <tr>
-                            <th class="p-4">ආයතනය</th>
-                            <th class="p-4">වෙබ් ලිපිනය</th>
-                            <th class="p-4">දෝෂයේ ස්වභාවය (Error Reason)</th>
-                            <th class="p-4 text-center">උත්සාහ කළ වාර ගණන</th>
-                            <th class="p-4">දිනය/වේලාව</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-errors-body" class="divide-y divide-slate-700/50">
-                        <tr><td colspan="5" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <!-- TAB 4: TARGET SITES MANAGER -->
+    <!-- TAB 6: TARGET SITES MANAGER -->
     <section id="content-targets" class="tab-content hidden">
         <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 mb-6 shadow-lg">
             <h3 class="text-sm font-bold text-white mb-4 flex items-center space-x-2">
@@ -206,6 +299,7 @@
                 <table class="w-full text-left text-xs text-slate-300">
                     <thead class="bg-slate-900 text-slate-400 uppercase font-semibold border-b border-slate-700">
                         <tr>
+                            <th class="p-4 w-12 text-center">#</th>
                             <th class="p-4">ආයතනය</th>
                             <th class="p-4">Category</th>
                             <th class="p-4">Careers URL</th>
@@ -214,7 +308,7 @@
                         </tr>
                     </thead>
                     <tbody id="table-targets-body" class="divide-y divide-slate-700/50">
-                        <tr><td colspan="5" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
+                        <tr><td colspan="6" class="p-6 text-center text-slate-500">දත්ත ලෝඩ් වෙමින් පවතී...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -223,9 +317,23 @@
 
 </main>
 
+<!-- Footer -->
+<footer class="bg-slate-800 border-t border-slate-700 mt-auto py-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-3">
+        <div class="flex items-center space-x-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>StepLK Automated Pipeline Active</span>
+        </div>
+        <div class="text-slate-500 text-[11px]">
+            <span>StepLK Scraper Dashboard v2.0</span>
+        </div>
+    </div>
+</footer>
+
 <script>
     let supabaseClient = null;
     let activeVacanciesData = [];
+    let processedVacanciesData = [];
     let sortAsc = false;
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -265,7 +373,7 @@
 
     function initSupabase(url, key) {
         if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-            alert('Supabase JS Library එක Load වුණේ නැත. කරුණාකර Internet connection එක හෝ AdBlocker settings පරීක්ෂා කරන්න.');
+            alert('Supabase JS Library එක Load වුණේ නැත. කරුණාකර Internet connection එක පරීක්ෂා කරන්න.');
             return;
         }
 
@@ -275,6 +383,28 @@
             loadAllData();
         } catch (err) {
             alert('Supabase Connection Error: ' + err.message);
+        }
+    }
+
+    function formatDateTime(dateStr) {
+        if (!dateStr || dateStr === 'N/A') return 'N/A';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+
+            let hours = d.getHours();
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+
+            return `${year}-${month}-${day}, ${hours}:${minutes} ${ampm}`;
+        } catch (e) {
+            return dateStr;
         }
     }
 
@@ -296,8 +426,10 @@
     function loadAllData() {
         if (!supabaseClient) return;
         loadActiveVacancies();
+        loadProcessedVacancies();
         loadNoVacancies();
         loadScraperErrors();
+        loadSystemLogs();
         loadTargetSites();
     }
 
@@ -306,37 +438,78 @@
         const { data, error } = await supabaseClient
             .from('vacancies')
             .select('*')
+            .or('is_processed.is.null,is_processed.eq.false')
             .order('searched_at', { ascending: false });
 
         if (error) {
-            console.error('Error fetching vacancies:', error);
+            console.error('Error fetching active vacancies:', error);
             return;
         }
 
         activeVacanciesData = data || [];
-        document.getElementById('count-vacancies').innerText = activeVacanciesData.length;
+        document.getElementById('count-active').innerText = activeVacanciesData.length;
         renderActiveVacancies(activeVacanciesData);
     }
 
     function renderActiveVacancies(data) {
         const tbody = document.getElementById('table-active-body');
         if (!data.length) {
-            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500">ඇබෑර්තු කිසිවක් හමු නොවීය.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500">Scan කිරීමට ඇති නොසැලකූ ඇබෑර්තු කිසිවක් හමු නොවීය.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = data.map(item => `
+        tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
+                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
-                <td class="p-4 text-slate-300 font-medium">${escapeHtml(item.post_title)}</td>
-                <td class="p-4 text-slate-400">${item.extract_date || 'N/A'}</td>
+                <td class="p-4 text-slate-300 font-medium">${escapeHtml(item.post_title || 'Vacancy Notice')}</td>
+                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
                 <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
                 <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
                 <td class="p-4 text-center">
                     <a href="${item.file_link || item.web_link}" target="_blank" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
                         <i class="fa-solid ${item.is_file ? 'fa-file-pdf' : 'fa-arrow-up-right-from-square'}"></i>
-                        <span>${item.is_file ? 'View PDF/Flyer' : 'Visit Web Page'}</span>
+                        <span>${item.is_file ? 'View Document' : 'Visit Web'}</span>
                     </a>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadProcessedVacancies() {
+        if (!supabaseClient) return;
+        const { data, error } = await supabaseClient
+            .from('vacancies')
+            .select('*')
+            .eq('is_processed', true)
+            .order('searched_at', { ascending: false });
+
+        if (error) return;
+
+        processedVacanciesData = data || [];
+        document.getElementById('count-processed').innerText = processedVacanciesData.length;
+        renderProcessedVacancies(processedVacanciesData);
+    }
+
+    function renderProcessedVacancies(data) {
+        const tbody = document.getElementById('table-processed-body');
+        if (!data.length) {
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500">දැනටමත් සැලකූ ඇබෑර්තු කිසිවක් නැත.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map((item, idx) => `
+            <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40 opacity-75">
+                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-4 font-semibold text-slate-300">${escapeHtml(item.company_name)}</td>
+                <td class="p-4 text-slate-300">${escapeHtml(item.post_title || 'Vacancy Notice')}</td>
+                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
+                <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
+                <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
+                <td class="p-4 text-center">
+                    <span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] px-2.5 py-1 rounded-full font-bold">
+                        <i class="fa-solid fa-check mr-1"></i> Synced
+                    </span>
                 </td>
             </tr>
         `).join('');
@@ -352,14 +525,26 @@
         renderActiveVacancies(filtered);
     }
 
-    function sortVacancies(field) {
+    function filterProcessedVacancies() {
+        const query = document.getElementById('search-processed').value.toLowerCase();
+        const filtered = processedVacanciesData.filter(item => 
+            (item.company_name && item.company_name.toLowerCase().includes(query)) || 
+            (item.post_title && item.post_title.toLowerCase().includes(query)) ||
+            (item.salary && item.salary.toLowerCase().includes(query))
+        );
+        renderProcessedVacancies(filtered);
+    }
+
+    function sortVacancies(field, tabType) {
         sortAsc = !sortAsc;
-        activeVacanciesData.sort((a, b) => {
+        const targetArr = tabType === 'active' ? activeVacanciesData : processedVacanciesData;
+        targetArr.sort((a, b) => {
             const valA = (a[field] || '').toString().toLowerCase();
             const valB = (b[field] || '').toString().toLowerCase();
             return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
         });
-        renderActiveVacancies(activeVacanciesData);
+        if (tabType === 'active') renderActiveVacancies(targetArr);
+        else renderProcessedVacancies(targetArr);
     }
 
     async function loadNoVacancies() {
@@ -375,15 +560,16 @@
         const tbody = document.getElementById('table-novacancy-body');
         
         if (!data || !data.length) {
-            tbody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500">දත්ත නොමැත.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = data.map(item => `
+        tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
+                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
                 <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-blue-400 hover:underline inline-flex items-center space-x-1"><span>${escapeHtml(item.web_link)}</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a></td>
-                <td class="p-4 text-slate-400">${item.searched_at ? new Date(item.searched_at).toLocaleString() : 'N/A'}</td>
+                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at)}</td>
             </tr>
         `).join('');
     }
@@ -401,17 +587,48 @@
         const tbody = document.getElementById('table-errors-body');
 
         if (!data || !data.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-400 font-medium"><i class="fa-solid fa-circle-check mr-1"></i> දැනට කිසිදු දෝෂයක් නොමැත! සියලු අඩවි සාර්ථකයි.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-emerald-400 font-medium"><i class="fa-solid fa-circle-check mr-1"></i> දැනට කිසිදු දෝෂයක් නොමැත! සියලු අඩවි සාර්ථකයි.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = data.map(item => `
+        tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
+                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
                 <td class="p-4 font-semibold text-rose-300">${escapeHtml(item.company_name)}</td>
                 <td class="p-4"><a href="${item.web_link}" target="_blank" class="text-slate-400 hover:underline">${escapeHtml(item.web_link)}</a></td>
                 <td class="p-4 text-rose-400 text-xs font-mono bg-rose-950/20 rounded p-2 border border-rose-900/30">${escapeHtml(item.error_message || 'Timeout / Connection Failure')}</td>
                 <td class="p-4 text-center font-bold text-amber-400">${item.retry_count || 1}</td>
-                <td class="p-4 text-slate-400">${item.searched_at ? new Date(item.searched_at).toLocaleString() : 'N/A'}</td>
+                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at)}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadSystemLogs() {
+        if (!supabaseClient) return;
+        const { data, error } = await supabaseClient
+            .from('document_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(50);
+
+        const tbody = document.getElementById('table-logs-body');
+        if (error || !data || !data.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500">ලොග් සටහන් කිසිවක් හමු නොවීය.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.map((log, idx) => `
+            <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
+                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
+                <td class="p-4 text-slate-200 font-semibold">${escapeHtml(log.file_name)}</td>
+                <td class="p-4 text-center">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${log.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+                        ${log.status}
+                    </span>
+                </td>
+                <td class="p-4 text-center text-amber-400 font-bold">${log.extracted_count || 0}</td>
+                <td class="p-4 text-slate-300 max-w-xs truncate">${escapeHtml(log.extracted_titles || log.error_message || 'N/A')}</td>
+                <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(log.created_at)}</td>
             </tr>
         `).join('');
     }
@@ -427,12 +644,13 @@
 
         const tbody = document.getElementById('table-targets-body');
         if (!data || !data.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">ආයතන කිසිවක් ඇතුළත් කර නොමැත.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500">ආයතන කිසිවක් ඇතුළත් කර නොමැත.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = data.map(item => `
+        tbody.innerHTML = data.map((item, idx) => `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
+                <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
                 <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold">${escapeHtml(item.category || 'General')}</span></td>
                 <td class="p-4"><a href="${item.careers_url}" target="_blank" class="text-blue-400 hover:underline">${escapeHtml(item.careers_url)}</a></td>
@@ -498,3 +716,5 @@
         return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 </script>
+</body>
+</html>
