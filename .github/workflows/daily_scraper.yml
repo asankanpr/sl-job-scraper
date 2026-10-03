@@ -2,8 +2,8 @@ name: Sri Lanka Job & Gazette Scraper
 
 on:
   schedule:
-    - cron: '30 3 * * *'  # ලංකාවේ උදේ 9:00 AM (SL Time)
-    - cron: '30 7 * * *'  # ලංකාවේ දවාල 1:00 PM (SL Time)
+    # SLT: 06:30 AM & 12:30 PM (UTC: 01:00 AM & 07:00 AM)
+    - cron: '0 1,7 * * *'
   workflow_dispatch:
 
 jobs:
@@ -28,5 +28,6 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_SCRAPER_KEY: ${{ secrets.GEMINI_SCRAPER_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_SCRAPER_KEY }}
         run: python scraper.py
