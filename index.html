@@ -145,7 +145,7 @@
                             </th>
                             <th class="p-4">අවසාන දිනය</th>
                             <th class="p-4">වැටුප / Salary</th>
-                            <th class="p-4 text-center">ලින්ක් / Document View</th>
+                            <th class="p-4 text-center whitespace-nowrap min-w-[140px]">ලින්ක් / Document View</th>
                         </tr>
                     </thead>
                     <tbody id="table-active-body" class="divide-y divide-slate-700/50">
@@ -180,7 +180,7 @@
                             <th class="p-4">ලබාගත් දිනය සහ වේලාව</th>
                             <th class="p-4">අවසාන දිනය</th>
                             <th class="p-4">වැටුප / Salary</th>
-                            <th class="p-4 text-center">Status</th>
+                            <th class="p-4 text-center whitespace-nowrap min-w-[120px]">Status</th>
                         </tr>
                     </thead>
                     <tbody id="table-processed-body" class="divide-y divide-slate-700/50">
@@ -458,7 +458,16 @@
             return;
         }
 
-        tbody.innerHTML = data.map((item, idx) => `
+        tbody.innerHTML = data.map((item, idx) => {
+            const docLink = item.file_link || item.web_link;
+            const linkHtml = docLink 
+                ? `<a href="${docLink}" target="_blank" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
+                        <i class="fa-solid ${item.is_file ? 'fa-file-pdf' : 'fa-arrow-up-right-from-square'}"></i>
+                        <span>${item.is_file ? 'View Document' : 'Visit Web'}</span>
+                   </a>`
+                : `<span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-[10px]">No Link</span>`;
+
+            return `
             <tr class="hover:bg-slate-700/30 transition border-b border-slate-700/40">
                 <td class="p-4 text-center font-bold text-slate-500">${idx + 1}</td>
                 <td class="p-4 font-semibold text-slate-200">${escapeHtml(item.company_name)}</td>
@@ -466,14 +475,10 @@
                 <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
                 <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
                 <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
-                <td class="p-4 text-center">
-                    <a href="${item.file_link || item.web_link}" target="_blank" class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${item.is_file ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'} transition">
-                        <i class="fa-solid ${item.is_file ? 'fa-file-pdf' : 'fa-arrow-up-right-from-square'}"></i>
-                        <span>${item.is_file ? 'View Document' : 'Visit Web'}</span>
-                    </a>
-                </td>
+                <td class="p-4 text-center whitespace-nowrap min-w-[140px]">${linkHtml}</td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
     }
 
     async function loadProcessedVacancies() {
@@ -506,8 +511,8 @@
                 <td class="p-4 text-slate-400 whitespace-nowrap">${formatDateTime(item.searched_at || item.extract_date)}</td>
                 <td class="p-4 text-slate-400">${item.closing_date || 'N/A'}</td>
                 <td class="p-4 text-emerald-400 font-medium">${escapeHtml(item.salary || 'N/A')}</td>
-                <td class="p-4 text-center">
-                    <span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] px-2.5 py-1 rounded-full font-bold">
+                <td class="p-4 text-center whitespace-nowrap min-w-[120px]">
+                    <span class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] px-2.5 py-1 rounded-full font-bold inline-flex items-center">
                         <i class="fa-solid fa-check mr-1"></i> Synced
                     </span>
                 </td>
