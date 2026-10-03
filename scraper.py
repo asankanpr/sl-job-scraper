@@ -18,24 +18,24 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from rapidfuzz import fuzz
 from pypdf import PdfReader
 
-# Google GenAI SDK Setup
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+# Google GenAI SDK Setup (Dedicated Key Priority)
+GEMINI_API_KEY = os.environ.get("GEMINI_SCRAPER_KEY", "").strip() or os.environ.get("GEMINI_API_KEY", "").strip()
 ai_client = None
 if GEMINI_API_KEY:
     try:
         from google import genai
         ai_client = genai.Client(api_key=GEMINI_API_KEY)
-        print("✨ Gemini AI initialized successfully!")
+        print("✨ Scraper Gemini AI initialized successfully!")
     except Exception as e:
         print(f"⚠️ Gemini AI setup warning: {e}")
 
 # Gemini Model Fallback Chain
 DEFAULT_CHAIN = [
-    "gemini-3.8-flash",       # Tier 1: Primary Model (High Accuracy)
-    "gemini-3.6-flash",       # Tier 2: Fast & Reliable Backup
-    "gemini-3.5-flash",       # Tier 3: Workhorse Backup
-    "gemini-3.5-flash-lite",  # Tier 4: Google Recommended Lite Model
-    "gemini-3.1-flash-lite"   # Tier 5: High Rate Limit Buffer
+    "gemini-3.8-flash",       # Tier 1: Primary Model
+    "gemini-3.6-flash",       # Tier 2: Backup
+    "gemini-3.5-flash",       # Tier 3: Workhorse
+    "gemini-3.5-flash-lite",  # Tier 4: Lite
+    "gemini-3.1-flash-lite"   # Tier 5: High Buffer
 ]
 
 # Disable SSL Warnings
@@ -53,7 +53,6 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 gdrive_lock = threading.Lock()
 
-# Google Drive Service Setup
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -93,7 +92,6 @@ def upload_file_to_drive(service, file_path, file_name, is_image=False):
             print(f"⚠️ Drive Upload Error for {file_name}: {e}")
             return None
 
-# Custom Session with Legacy SSL
 class CustomSSLAdapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
         ctx = create_urllib3_context()
@@ -145,25 +143,26 @@ def fetch_url_smart(session, original_url, max_retries=2):
         time.sleep(1)
     return None, original_url
 
-# Keywords & Strict Filters
+# Keywords & STRICT JUNK FILTERS
 JOB_KEYWORDS = [
     'vacancy', 'vacancies', 'career', 'careers', 'opening', 'openings',
     'recruit', 'recruitment', 'employment', 'job', 'jobs', 'gazette',
     'post of', 'officer', 'executive', 'assistant', 'lecturer', 'manager',
-    'ඇබෑර්තු', 'රැකියා', 'ගැසට්', 'තැන්'
+    'ඇබෑර්තු', 'රැකියා', 'ගැසට්'
 ]
 
 STRICT_JUNK_KEYWORDS = [
     'tender', 'tenders', 'quotation', 'bids', 'bid', 'procurement', 'supplier',
-    'exam', 'examination', 'result', 'results', 'timetable', 'seminar', 'workshop',
+    'result', 'results', 'timetable', 'seminar', 'workshop',
     'auction', 'application form', 'specimen application', 'seniority list',
     'transfer', 'minutes', 'amendment', 'circular', 'syllabus', 'viva',
-    'ප්‍රසම්පාදන', 'ලංසු', 'විභාග', 'ප්‍රතිඵල', 'අයදුම්පත', 'ආකෘතිය', 'ජ්‍යෙෂ්ඨතාව'
+    'press release', 'news', 'notice board', 'procurement notice',
+    'ප්‍රසම්පාදන', 'ලංසු', 'ප්‍රතිඵල', 'අයදුම්පත', 'ආකෘතිය', 'ජ්‍යෙෂ්ඨතාව',
+    'වෙන්දේසිය', 'මාරුවීම්', 'වාර්තාව'
 ]
 
 HUB_KEYWORDS = ['career', 'careers', 'vacancy', 'vacancies', 'job', 'jobs', 'notice', 'notices', 'ඇබෑර්තු']
 
-# Text Extractor for PDF
 def extract_text_from_pdf_bytes(pdf_bytes):
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
@@ -174,7 +173,6 @@ def extract_text_from_pdf_bytes(pdf_bytes):
     except Exception:
         return ""
 
-# AI Content Extraction with Model Fallback Chain
 def analyze_content_with_ai(title_raw, text_content):
     if ai_client and len(text_content) > 20:
         prompt = f"""
@@ -189,11 +187,10 @@ def analyze_content_with_ai(title_raw, text_content):
             "closing_date": "YYYY-MM-DD or N/A",
             "salary": "Extracted salary/scale or N/A"
         }}
-        Rules:
-        - is_valid_job_vacancy must be false if this is just an application form, tender, exam result, or general notice.
+        Strict Rule:
+        - is_valid_job_vacancy MUST BE FALSE if this is a procurement/tender notice, general public circular, exam result sheet, or blank specimen application form.
         """
 
-        # Execute Chain Fallback Loop
         for model_name in DEFAULT_CHAIN:
             try:
                 response = ai_client.models.generate_content(
@@ -204,15 +201,10 @@ def analyze_content_with_ai(title_raw, text_content):
                 raw_clean = re.sub(r'```json\s*|\s*```', '', raw)
                 data = json.loads(raw_clean)
                 return data
-            except Exception as e:
-                print(f"⚠️ Model [{model_name}] failed/limited. Trying fallback model... Error: {e}")
+            except Exception:
                 continue
 
-        print("❌ All Gemini Models in chain failed. Falling back to Heuristic extraction.")
-
-    # Heuristic Fallback Strategy
     closing_date = "N/A"
-    is_expired = False
     date_match = re.search(r'(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})|(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})', text_content)
     if date_match:
         raw_d = date_match.group(0).replace('.', '-').replace('/', '-')
@@ -223,7 +215,6 @@ def analyze_content_with_ai(title_raw, text_content):
             else:
                 parsed_d = datetime.strptime(raw_d, '%d-%m-%Y').date()
             closing_date = parsed_d.strftime('%Y-%m-%d')
-            is_expired = parsed_d < datetime.now().date()
         except Exception:
             pass
 
@@ -237,13 +228,12 @@ def analyze_content_with_ai(title_raw, text_content):
         clean_title = "Vacancy Notice"
 
     return {
-        "is_valid_job_vacancy": not is_expired,
+        "is_valid_job_vacancy": True,
         "clean_post_title": clean_title,
         "closing_date": closing_date,
         "salary": salary
     }
 
-# Smart Multi-Field Deduplication (Corrected Logic)
 def is_duplicate_vacancy(company_name, title, closing_date, salary, existing_records):
     norm_title = re.sub(r'[^a-zA-Z0-9]', '', title.lower())
 
@@ -251,32 +241,24 @@ def is_duplicate_vacancy(company_name, title, closing_date, salary, existing_rec
         rec_title = re.sub(r'[^a-zA-Z0-9]', '', (rec.get('post_title') or '').lower())
         sim_ratio = fuzz.token_sort_ratio(norm_title, rec_title)
 
-        # Job Title එක 85% කට වඩා සමාන නම් විතරක් ඊළඟ කරුණු බලනවා
         if sim_ratio > 85:
             rec_date = rec.get('closing_date') or 'N/A'
             rec_sal = rec.get('salary') or 'N/A'
 
-            # 1. Closing Date දෙකම තියෙනවා නම් සහ ඒවා EXACT එකම වෙනවා නම් විතරක් Duplicate (Skip) වෙනවා.
-            # Closing Date වෙනස් නම් (අලුත් Batch එකක් නම්) Duplicate වෙන්නේ නෑ! (Save වෙනවා)
             if closing_date != "N/A" and rec_date != "N/A":
                 if closing_date == rec_date:
-                    return True # Exact Duplicate -> Skip
+                    return True
                 else:
-                    continue # Closing Date වෙනස් -> Save කරන්න ඉඩ දෙනවා
-
-            # 2. Closing Date නැති විට, Salary එක සමානදැයි බලයි
+                    continue
             elif salary != "N/A" and rec_sal != "N/A":
                 if salary == rec_sal:
                     return True
-
-            # 3. Date / Salary දෙකම N/A නම්, Title එක 95% කට වඩා සමාන නම් විතරක් Skip කරයි
             else:
                 if sim_ratio > 95:
                     return True
 
     return False
 
-# Single Target Worker
 def process_single_target(target, gdrive_service):
     session = get_thread_session()
     company_name = target['company_name']
@@ -295,7 +277,7 @@ def process_single_target(target, gdrive_service):
 
     soup = BeautifulSoup(res.content, 'html.parser')
 
-    # Fetch existing company records for deduplication
+    # Reads all records (both processed and unprocessed) to guarantee zero duplicates
     existing_resp = supabase.table('vacancies').select('post_title, closing_date, salary, web_link').eq('company_name', company_name).execute()
     existing_records = existing_resp.data or []
 
@@ -318,7 +300,6 @@ def process_single_target(target, gdrive_service):
         
         p_soup = BeautifulSoup(p_res.content, 'html.parser')
 
-        # Embedded Flyers (iframe, embed, object)
         embed_links = []
         for tag in p_soup.find_all(['iframe', 'embed', 'object']):
             src = tag.get('src') or tag.get('data')
@@ -332,11 +313,10 @@ def process_single_target(target, gdrive_service):
             href_clean = href.strip()
             combined = f"{title_text} {href_clean}".lower()
 
-            # Strict Junk Filter
+            # Strict Junk Filtering
             if any(jk in combined for jk in STRICT_JUNK_KEYWORDS):
                 continue
 
-            # Vacancy Keyword Match
             if any(jk in combined for jk in JOB_KEYWORDS) or href_clean.lower().endswith(('.pdf', '.jpg', '.png', '.jpeg')):
                 full_link = urljoin(p_url, href_clean)
 
@@ -358,7 +338,6 @@ def process_single_target(target, gdrive_service):
                     except Exception:
                         pass
 
-                # AI Extraction using Fallback Chain
                 parsed_info = analyze_content_with_ai(title_text or "Vacancy Notice", text_content)
 
                 if not parsed_info.get("is_valid_job_vacancy", True):
@@ -368,7 +347,6 @@ def process_single_target(target, gdrive_service):
                 closing_date = parsed_info.get("closing_date", "N/A")
                 salary = parsed_info.get("salary", "N/A")
 
-                # Multi-field Deduplication Check
                 if is_duplicate_vacancy(company_name, clean_title, closing_date, salary, existing_records):
                     print(f"⏩ [Duplicate Skipped]: {clean_title} ({company_name})")
                     continue
@@ -412,6 +390,7 @@ def process_single_target(target, gdrive_service):
                 "web_link": item['link'],
                 "file_link": final_link,
                 "is_file": item['is_file'],
+                "is_processed": False,
                 "searched_at": datetime.now().isoformat()
             }).execute()
 
