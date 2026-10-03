@@ -23,8 +23,16 @@ jobs:
           SB_URL: ${{ secrets.SUPABASE_URL }}
           SB_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          sed -i "s|__SUPABASE_URL__|${SB_URL}|g" index.html
-          sed -i "s|__SUPABASE_ANON_KEY__|${SB_KEY}|g" index.html
+          python -c "
+          import os
+          url = os.environ.get('SB_URL', '').strip()
+          key = os.environ.get('SB_KEY', '').strip()
+          with open('index.html', 'r', encoding='utf-8') as f:
+              content = f.read()
+          content = content.replace('__SUPABASE_URL__', url).replace('__SUPABASE_ANON_KEY__', key)
+          with open('index.html', 'w', encoding='utf-8') as f:
+              f.write(content)
+          "
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
