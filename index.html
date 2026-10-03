@@ -33,59 +33,15 @@
                 <p class="text-xs text-slate-400">StepLK Realtime Monitoring & Control Dashboard</p>
             </div>
         </div>
-
-        <!-- Credentials Config Trigger -->
-        <button onclick="toggleConfigModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3.5 py-2 rounded-lg flex items-center space-x-2 border border-slate-600 transition shadow-sm">
-            <i class="fa-solid fa-key text-amber-400"></i>
-            <span>Supabase Setup</span>
-        </button>
     </div>
 </header>
-
-<!-- Credentials Modal -->
-<div id="configModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 hidden">
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl relative">
-        <h3 class="text-lg font-bold text-white mb-2 flex items-center space-x-2">
-            <i class="fa-solid fa-sliders text-blue-400"></i>
-            <span>Supabase Credentials Setup</span>
-        </h3>
-        <p class="text-xs text-slate-400 mb-5 leading-relaxed">
-            Dashboard එක Supabase එකට Connect කිරීමට පහත විස්තර ඇතුළත් කරන්න.
-        </p>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Supabase Project URL</label>
-                <input type="text" id="sbUrlInput" placeholder="https://xxxx.supabase.co" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Supabase Anon Key (Public Key)</label>
-                <input type="password" id="sbKeyInput" placeholder="eyJhbGciOi..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition">
-            </div>
-        </div>
-
-        <div class="mt-6 flex justify-end space-x-3">
-            <button onclick="toggleConfigModal()" class="px-4 py-2 text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition">Cancel</button>
-            <button onclick="saveCredentials()" class="px-4 py-2 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition shadow-md shadow-blue-600/30">Save & Connect</button>
-        </div>
-    </div>
-</div>
 
 <!-- Main Container -->
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
 
-    <!-- Connection Alert Banner -->
-    <div id="connStatusAlert" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl text-xs flex items-center justify-between mb-6">
-        <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
-            <span>Supabase Credentials තවමත් සකසා නැත. <b>"Supabase Setup"</b> Button එක ක්ලික් කර URL සහ Key ඇතුළත් කරන්න.</span>
-        </div>
-        <button onclick="toggleConfigModal()" class="underline font-bold hover:text-white">Setup Now</button>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-4 mb-6 border-b border-slate-800">
-        <button onclick="switchTab('active')" id="tab-active" class="tab-btn active shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
+    <!-- Navigation Tabs (Clipped Tab Fix) -->
+    <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-3 mb-6 border-b border-slate-800">
+        <button onclick="switchTab('active')" id="tab-active" class="tab-btn shrink-0 active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
             <i class="fa-solid fa-list-check text-emerald-400"></i>
             <span>Active Vacancies (නොසැලකූ)</span>
             <span id="count-active" class="bg-blue-950/80 text-blue-200 text-[10px] px-2 py-0.5 rounded-full ml-1">0</span>
@@ -114,7 +70,7 @@
             <span>System Logs (ලොග් සටහන්)</span>
         </button>
 
-        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 ml-auto">
+        <button onclick="switchTab('targets')" id="tab-targets" class="tab-btn shrink-0 px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200">
             <i class="fa-solid fa-globe text-emerald-400"></i>
             <span>Target Sites Manager</span>
         </button>
@@ -336,7 +292,7 @@
 </footer>
 
 <script>
-    // GitHub Actions secret injection placeholders
+    // GitHub Actions Secret Placeholders
     const SUPABASE_URL = "__SUPABASE_URL__";
     const SUPABASE_ANON_KEY = "__SUPABASE_ANON_KEY__";
 
@@ -346,49 +302,20 @@
     let sortAsc = false;
 
     window.addEventListener('DOMContentLoaded', () => {
-        // GitHub Actions secrets inject hoyeche kina ta check kora
         if (SUPABASE_URL && SUPABASE_URL !== "__SUPABASE_URL__" && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== "__SUPABASE_ANON_KEY__") {
             initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
         } else {
-            // Local fallback (localStorage check)
             const savedUrl = localStorage.getItem('sb_url') || '';
             const savedKey = localStorage.getItem('sb_key') || '';
-
             if (savedUrl && savedKey) {
-                document.getElementById('sbUrlInput').value = savedUrl;
-                document.getElementById('sbKeyInput').value = savedKey;
                 initSupabase(savedUrl, savedKey);
-            } else {
-                document.getElementById('connStatusAlert').classList.remove('hidden');
-                toggleConfigModal();
             }
         }
     });
 
-    function toggleConfigModal() {
-        const modal = document.getElementById('configModal');
-        modal.classList.toggle('hidden');
-    }
-
-    function saveCredentials() {
-        const url = document.getElementById('sbUrlInput').value.trim();
-        const key = document.getElementById('sbKeyInput').value.trim();
-
-        if (!url || !key) {
-            alert('කරුණාකර Supabase URL සහ Key යන දෙකම ඇතුළත් කරන්න.');
-            return;
-        }
-
-        localStorage.setItem('sb_url', url);
-        localStorage.setItem('sb_key', key);
-        document.getElementById('connStatusAlert').classList.add('hidden');
-        initSupabase(url, key);
-        toggleConfigModal();
-    }
-
     function initSupabase(url, key) {
         if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
-            alert('Supabase JS Library එක Load වුණේ නැත. කරුණාකර Internet connection එක පරීක්ෂා කරන්න.');
+            console.error('Supabase SDK missing');
             return;
         }
 
@@ -397,7 +324,7 @@
             supabaseClient = createClient(url, key);
             loadAllData();
         } catch (err) {
-            alert('Supabase Connection Error: ' + err.message);
+            console.error('Supabase error:', err);
         }
     }
 
@@ -414,8 +341,7 @@
             let hours = d.getHours();
             const minutes = String(d.getMinutes()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; 
+            hours = hours % 12 || 12; 
 
             return `${year}-${month}-${day}, ${hours}:${minutes} ${ampm}`;
         } catch (e) {
@@ -456,10 +382,7 @@
             .or('is_processed.is.null,is_processed.eq.false')
             .order('searched_at', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching active vacancies:', error);
-            return;
-        }
+        if (error) return;
 
         activeVacanciesData = data || [];
         document.getElementById('count-active').innerText = activeVacanciesData.length;
@@ -689,16 +612,13 @@
     }
 
     async function addTargetSite() {
-        if (!supabaseClient) {
-            alert('Supabase Connect වී නොමැත.');
-            return;
-        }
+        if (!supabaseClient) return;
         const name = document.getElementById('new-comp-name').value.trim();
         const url = document.getElementById('new-comp-url').value.trim();
         const cat = document.getElementById('new-comp-cat').value;
 
         if (!name || !url) {
-            alert('කරුණාකර ආයතනයේ නම සහ Careers URL එක ඇතුළත් කරන්න.');
+            alert('ආයතනයේ නම සහ Careers URL ඇතුළත් කරන්න.');
             return;
         }
 
