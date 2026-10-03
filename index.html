@@ -22,7 +22,7 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
 <!-- EMAIL & PASSWORD LOGIN OVERLAY -->
-<div id="loginOverlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4 hidden">
+<div id="loginOverlay" class="fixed inset-0 bg-slate-950/95 backdrop-blur-md flex items-center justify-center z-50 p-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 max-w-sm w-full shadow-2xl">
         <div class="text-center mb-6">
             <div class="inline-flex bg-blue-600 p-3 rounded-2xl text-white mb-3 shadow-lg shadow-blue-600/30">
@@ -365,7 +365,6 @@
 
         if (!url || !key) {
             document.getElementById('connStatusAlert').classList.remove('hidden');
-            document.getElementById('loginOverlay').classList.add('hidden');
             return;
         }
 
