@@ -80,7 +80,7 @@
 <!-- Main Container -->
 <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 flex-1 w-full">
 
-    <!-- Manual Connection Fallback Alert (If URL/Key missing) -->
+    <!-- Manual Connection Fallback Alert -->
     <div id="connStatusAlert" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl text-xs flex flex-col sm:flex-row items-center justify-between mb-6 gap-3">
         <div class="flex items-center space-x-2">
             <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm shrink-0"></i>
@@ -93,7 +93,7 @@
         </div>
     </div>
 
-    <!-- Navigation Tabs (NO CLIPPING FIX) -->
+    <!-- Navigation Tabs (CLIP FIX & SCROLL) -->
     <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-3 mb-6 border-b border-slate-800 w-full">
         <button onclick="switchTab('active')" id="tab-active" class="tab-btn shrink-0 whitespace-nowrap active px-4 py-2.5 rounded-lg text-xs font-semibold transition flex items-center space-x-2 bg-blue-600 text-white shadow-md">
             <i class="fa-solid fa-list-check text-emerald-400"></i>
@@ -130,7 +130,7 @@
         </button>
     </div>
 
-    <!-- TAB 1: ACTIVE VACANCIES (UNPROCESSED) -->
+    <!-- TAB 1: ACTIVE VACANCIES -->
     <section id="content-active" class="tab-content">
         <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
             <div class="relative w-full sm:w-80">
@@ -365,6 +365,7 @@
 
         if (!url || !key) {
             document.getElementById('connStatusAlert').classList.remove('hidden');
+            document.getElementById('loginOverlay').classList.add('hidden');
             return;
         }
 
